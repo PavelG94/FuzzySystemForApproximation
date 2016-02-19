@@ -75,17 +75,17 @@ void MainWindow::StepButtonSlot()
     }
     bool is_step_done = _builder.BuildStep(_rest_points);
     if(is_step_done) {
-        QMap<double,double> small_error_points = _builder.GetSmallErrorPoints();
-        if (small_error_points.isEmpty()) {
+        QMap<double,double> small_dist_to_recog_line_points = _builder.GetSmallDistToRecogLinePoints();
+        if (small_dist_to_recog_line_points.isEmpty()) {
             _finish_status = true;
         } else {
-            RemovePointsFrom(small_error_points, _rest_points);
+            RemovePointsFrom(small_dist_to_recog_line_points, _rest_points);
         }
         double a = _builder.GetAngleCoefOfRecogLine(),
                b = _builder.GetShiftOfRecogLine();
         UnaryFunc line = std::function<double(double)>([a,b](double x)->double { return a*x + b; });
         QMap<double,double> line_points = CalcValuesOnTheSameArgs(line, _in_points);
-        DrawStepInfo(small_error_points, line_points, a, b);
+        DrawStepInfo(small_dist_to_recog_line_points, line_points, a, b);
     } else {
        DrawResultInfo();
        _finish_status = true;
@@ -97,11 +97,11 @@ void MainWindow::ResultButtonSlot()
     while (_finish_status == false) {
         bool is_step_done = _builder.BuildStep(_rest_points);
         _finish_status = (is_step_done == false);
-        QMap<double,double> small_error_points = _builder.GetSmallErrorPoints();
-        if (small_error_points.isEmpty()) {
+        QMap<double,double> small_dist_to_recog_line_points = _builder.GetSmallDistToRecogLinePoints();
+        if (small_dist_to_recog_line_points.isEmpty()) {
             _finish_status = true;
         } else {
-            RemovePointsFrom(small_error_points, _rest_points);
+            RemovePointsFrom(small_dist_to_recog_line_points, _rest_points);
         }
     }
     DrawResultInfo();

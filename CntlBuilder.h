@@ -12,7 +12,7 @@ class CntlBuilder
 public:
     const int MIN_POINTS_FOR_LINE_DEF = 2;
     const double DIST_EPS = 0.1;
-    const double CNTL_ERROR_EPS = 0.5;
+    const double CNTL_ERROR_EPS = 0.1;
 
     static double CalcSumError(SugenoCntl &cntl, const QMap<double,double> &points);
 
@@ -23,6 +23,8 @@ public:
     bool BuildStep(const QMap<double,double> &rest_points);
 
     QMap<double,double> GetSmallErrorPoints() const { return _small_error_points; }
+    QMap<double,double> GetSmallDistToRecogLinePoints() const { return _small_dist_to_recog_line_points; }
+
     double GetAngleCoefOfRecogLine() const { return _angle_coef; }
     double GetShiftOfRecogLine() const { return _line_shift; }
 
