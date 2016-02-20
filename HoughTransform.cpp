@@ -43,6 +43,34 @@ void HoughTransform::AddPoint(double x, double y)
     _is_result_found = false;
 }
 
+QMap<double, double> HoughTransform::GetPointsFromRecogLine(const QMap<double, double> &in_points)
+{
+    assert(_matrix != nullptr);
+    if (_is_result_found == false) FindResult();
+
+    QMap<double,double> points_from_recog_line;
+    QMapIterator<double,double> it(in_points);
+    while(it.hasNext()) {
+        it.next();
+        double x = it.key(), y = it.value();
+        for (int angle_in_degr = 0; angle_in_degr < _ROWS_AS_ANGLE_VALUES; angle_in_degr++) {
+            double angle_in_rad = qDegreesToRadians(double(angle_in_degr));
+            double radius = x*qCos(angle_in_rad) + y*qSin(angle_in_rad);
+            if (0 <= radius && radius <= _max_radius) {
+                int row = angle_in_degr;
+                int col = qRound(radius / _radius_step);
+                if (row == _row_of_max && col == _col_of_max) {
+                    //вставка без повторов
+                    points_from_recog_line.insert(x,y);
+                    //поиск значений только для одной ячейки таблицы
+                    break;
+                }
+            }
+        }
+    }
+    return points_from_recog_line;
+}
+
 double HoughTransform::GetNormalAngleInDegr()
 {
     if (_is_result_found == false) FindResult();
@@ -100,15 +128,16 @@ void HoughTransform::DeleteTable()
 
 void HoughTransform::FindResult()
 {
-    int row_of_max = 0, col_of_max = 0;
+    _row_of_max = 0;
+    _col_of_max = 0;
     for (int row = 0; row < _ROWS_AS_ANGLE_VALUES; ++row) {
         for (int col = 0; col < _columns_as_radius_values; ++col) {
-            if (_matrix[row_of_max][col_of_max] < _matrix[row][col]) {
-                row_of_max = row;
-                col_of_max = col;
+            if (_matrix[_row_of_max][_col_of_max] < _matrix[row][col]) {
+                _row_of_max = row;
+                _col_of_max = col;
             }
         }
     }
-    _res_angle_in_degr = row_of_max; _res_radius = col_of_max * _radius_step;
+    _res_angle_in_degr = _row_of_max; _res_radius = _col_of_max * _radius_step;
     _is_result_found = true;
 }

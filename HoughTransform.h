@@ -1,6 +1,8 @@
 #ifndef HOUGHTRANSFORM_H
 #define HOUGHTRANSFORM_H
 
+#include <QMap>
+
 class HoughTransform
 {
 public:
@@ -14,6 +16,8 @@ public:
     double GetRadiusStep() const { return _radius_step; }
 
     void AddPoint(double x, double y);
+
+    QMap<double,double> GetPointsFromRecogLine(const QMap<double,double> &in_points);
 
     double GetNormalAngleInDegr();
     double GetNormalRadius();
@@ -34,7 +38,10 @@ private:
 
     bool _is_result_found = false;
     const double _MIN_RADIUS_STEP = 0.1, _MAX_RADIUS_STEP = 1;
+    int _row_of_max, _col_of_max;
     double _res_angle_in_degr, _res_radius;
+
+
     int **_matrix = nullptr;
     const int _ROWS_AS_ANGLE_VALUES = 360;
     int _columns_as_radius_values;
