@@ -43,6 +43,21 @@ void HoughTransform::AddPoint(double x, double y)
     _is_result_found = false;
 }
 
+void HoughTransform::AddError(double x, double y, double error)
+{
+    assert(_matrix != nullptr);
+    for (int angle_in_degr = 0; angle_in_degr < _ROWS_AS_ANGLE_VALUES; angle_in_degr++) {
+        double angle_in_rad = qDegreesToRadians(double(angle_in_degr));
+        double radius = x*qCos(angle_in_rad) + y*qSin(angle_in_rad);
+        if (0 <= radius && radius <= _max_radius) {
+            int row = angle_in_degr;
+            int col = qRound(radius / _radius_step);
+            _matrix[row][col] += error;
+        }
+    }
+    _is_result_found = false;
+}
+
 double HoughTransform::GetNormalAngleInDegr()
 {
     if (_is_result_found == false) FindResult();
@@ -103,9 +118,9 @@ double HoughTransform::GetLineShift()
 
 void HoughTransform::CreateTable()
 {
-    _matrix = new int*[_ROWS_AS_ANGLE_VALUES];
+    _matrix = new double*[_ROWS_AS_ANGLE_VALUES];
     for (int i = 0; i < _ROWS_AS_ANGLE_VALUES; ++i) {
-       _matrix[i] = new int[_columns_as_radius_values];
+       _matrix[i] = new double[_columns_as_radius_values];
     }
 }
 

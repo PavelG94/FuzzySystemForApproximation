@@ -135,6 +135,11 @@ void MainWindow::InitPlotWidget(const QCPRange &x_range, const QCPRange &y_range
     //Диапазоны значений на осях
     _plot_widget->xAxis->setRange(x_range);
     _plot_widget->yAxis->setRange(y_range);
+
+    if (_in_points.isEmpty() == false) {
+        AddGraphOnPlot(_in_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::blue, _INPUT_LEGEND));
+        RedrawPlot();
+    }
 }
 
 void MainWindow::InitMainWindow()

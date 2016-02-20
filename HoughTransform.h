@@ -16,6 +16,7 @@ public:
     double GetRadiusStep() const { return _radius_step; }
 
     void AddPoint(double x, double y);
+    void AddError(double x, double y, double error);
 
     double GetNormalAngleInDegr();
     double GetNormalRadius();
@@ -40,7 +41,7 @@ private:
     int _row_of_max, _col_of_max;
     double _res_angle_in_degr, _res_radius;
 
-    int **_matrix = nullptr;
+    double **_matrix = nullptr;
     const int _ROWS_AS_ANGLE_VALUES = 360;
     int _columns_as_radius_values;
     double _radius_step, _max_radius;

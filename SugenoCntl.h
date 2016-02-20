@@ -18,6 +18,7 @@ public:
 
     SugenoCntl();
 
+    int RulesCnt() const { return _rules.size(); }
     void AddRule(UnaryFunc m_func, UnaryFunc linear_func);
     double operator()(double x) override;
     bool IsLastResValid() const override;
@@ -25,7 +26,7 @@ public:
     void Clear();
 
 private:
-    QVector<Rule> rules;
+    QVector<Rule> _rules;
     bool _validity_flag;
 };
 
