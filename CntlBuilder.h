@@ -12,7 +12,7 @@ class CntlBuilder
 public:
     const int MIN_POINTS_FOR_LINE_DEF = 2;
     const double DIST_EPS = 0.1;
-    const double CNTL_ERROR_EPS = 0.1;
+    const double CNTL_ERROR_EPS = 0.5;
 
     static double CalcSumError(SugenoCntl &cntl, const QMap<double,double> &points);
 

@@ -84,16 +84,5 @@ double CntlBuilder::CalcDistToRecogLine(double normal_angle_in_rad, double norma
 
 void CntlBuilder::FindPointsWithSmallDistToRecogLine(const QMap<double, double> &points)
 {
-    double normal_angle_in_rad = qDegreesToRadians(_hough.GetNormalAngleInDegr()),
-           normal_length = _hough.GetNormalRadius();
-    _small_dist_to_recog_line_points.clear();
-    QMapIterator<double,double> it(points);
-    while (it.hasNext()) {
-        it.next();
-        double x = it.key(), y = it.value();
-        double dist = CalcDistToRecogLine(normal_angle_in_rad, normal_length, x, y);
-        if (dist <= DIST_EPS) {
-            _small_dist_to_recog_line_points.insert(x,y);
-        }
-    }
+    _small_dist_to_recog_line_points = _hough.GetPointsFromRecogLine(points);
 }
