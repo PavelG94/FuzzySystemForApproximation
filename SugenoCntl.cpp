@@ -36,7 +36,7 @@ void SugenoCntl::AddRule(UnaryFunc m_func, UnaryFunc linear_func)
     Rule rule;
     rule.m_func = m_func;
     rule.linear_func = linear_func;
-    rules.push_back(rule);
+    _rules.push_back(rule);
 }
 
 bool SugenoCntl::IsLastResValid() const
@@ -46,7 +46,7 @@ bool SugenoCntl::IsLastResValid() const
 
 void SugenoCntl::Clear()
 {
-    rules.clear();
+    _rules.clear();
     _validity_flag = true;
 }
 
@@ -54,12 +54,12 @@ double SugenoCntl::operator()(double x)
 {
     bool has_active_rules = false;
     double numerator(0), denominator(0);
-    for (int i = 0; i < rules.size(); ++i) {
-        double m_func_val = rules[i].m_func(x);
+    for (int i = 0; i < _rules.size(); ++i) {
+        double m_func_val = _rules[i].m_func(x);
         bool is_active = m_func_val > 0;
         if (is_active) {
             has_active_rules = true;
-            numerator += m_func_val * rules[i].linear_func(x);
+            numerator += m_func_val * _rules[i].linear_func(x);
             denominator += m_func_val;
         }
     }

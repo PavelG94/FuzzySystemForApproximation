@@ -50,6 +50,34 @@ bool CntlBuilder::BuildStep(const QMap<double, double> &rest_points)
     return true;
 }
 
+QMap<double, double> CntlBuilder::CalcErrors(const QMap<double, double> &points)
+{
+    assert(_cntl != nullptr);
+    SugenoCntl cntl = *(_cntl);
+    QMap<double,double> errors;
+    QMapIterator<double,double> points_it(points);
+    double max_error = -1;
+    while(points_it.hasNext()) {
+        points_it.next();
+        double x = points_it.key(), y = points_it.value();
+        double y_cntl = cntl(x);
+        double error = qAbs(y - y_cntl);
+        errors.insert(x, error);
+        if (error > max_error) max_error = error;
+    }
+    if (max_error <= 0) return errors;
+
+    //Нормировка
+    QMutableMapIterator<double,double> errors_it(errors);
+    while (errors_it.hasNext()) {
+        errors_it.next();
+        double error = errors_it.value();
+        double n_error = error/max_error;
+        errors_it.value() = n_error;
+    }
+    return errors;
+}
+
 void CntlBuilder::CalcSmallCntlErrorPoints(const QMap<double,double> &points)
 {
     _small_error_points.clear();
@@ -68,10 +96,23 @@ void CntlBuilder::CalcSmallCntlErrorPoints(const QMap<double,double> &points)
 void CntlBuilder::UsePointsForRecog(const QMap<double, double> &points)
 {
     _hough.Clear();
-    QMapIterator<double,double> it(points);
-    while (it.hasNext()) {
-        it.next();
-        _hough.AddPoint(it.key(), it.value());
+    if (points.isEmpty()) return;
+    if (_cntl->RulesCnt() == 0) {
+        QMapIterator<double,double> it(points);
+        while (it.hasNext()) {
+            it.next();
+            double x = it.key(), y = it.value();
+            _hough.AddPoint(x, y);
+        }
+    } else {
+        //Вычисление нормированных ошибок, т.е. диапазон их зн-ий = [0,1]
+        QMap<double,double> errors = CalcErrors(points);
+        QMapIterator<double,double> it(errors);
+        while (it.hasNext()) {
+            it.next();
+            double x = it.key(), y = points.value(x), error = it.value();
+            _hough.AddError(x,y,error);
+        }
     }
 }
 
