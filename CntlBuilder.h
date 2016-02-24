@@ -14,6 +14,8 @@ public:
     const double DIST_EPS = 0.5;
     const double CNTL_ERROR_EPS = 0.1;
 
+    const double MAX_ERROR_EPS = 0.1;
+
     static double CalcSumError(SugenoCntl &cntl, const QMap<double,double> &points);
 
     CntlBuilder();
@@ -42,6 +44,8 @@ private:
     double _angle_coef = 0, _line_shift = 0;
     QMap<double,double> _small_dist_to_recog_line_points;
     QMap<double,double> _small_error_points;
+
+    double _max_error;
 };
 
 #endif // CNTLBUILDER_H

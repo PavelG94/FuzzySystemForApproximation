@@ -52,6 +52,9 @@ private:
     void ClearPlot();
 
 private:
+    const int _MAX_LEARNING_STEPS = 100;
+    int _learning_steps_done;
+
     QMap<double, double> _in_points;
     QMap<double, double> _rest_points;
     SugenoCntl _cntl;

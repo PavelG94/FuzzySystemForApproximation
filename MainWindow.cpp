@@ -33,6 +33,7 @@ void MainWindow::SetData(UnaryFunc &f, const QCPRange &x_range, double step)
     }
     InitPlotWidget(x_range, y_range);
     PrepareToLearning();
+    _learning_steps_done = 0;
     _finish_status = false;
 }
 
@@ -59,6 +60,7 @@ void MainWindow::SetData(const QVector<double> &x_vals, const QVector<double> &y
     }
     InitPlotWidget(x_range, y_range);
     PrepareToLearning();
+    _learning_steps_done = 0;
     _finish_status = false;
 }
 
@@ -73,19 +75,17 @@ void MainWindow::StepButtonSlot()
         DrawResultInfo();
         return;
     }
-    bool is_step_done = _builder.BuildStep(_rest_points);
+    bool is_step_done = _builder.BuildStep(_in_points);
     if(is_step_done) {
+        ++_learning_steps_done;
         QMap<double,double> small_dist_to_recog_line_points = _builder.GetSmallDistToRecogLinePoints();
-        if (small_dist_to_recog_line_points.isEmpty()) {
-            _finish_status = true;
-        } else {
-            RemovePointsFrom(small_dist_to_recog_line_points, _rest_points);
-        }
+        //Входное множество точек не меняется на протяжении всего обучения!
         double a = _builder.GetAngleCoefOfRecogLine(),
                b = _builder.GetShiftOfRecogLine();
         UnaryFunc line = std::function<double(double)>([a,b](double x)->double { return a*x + b; });
         QMap<double,double> line_points = CalcValuesOnTheSameArgs(line, _in_points);
         DrawStepInfo(small_dist_to_recog_line_points, line_points, a, b);
+        _finish_status = (_MAX_LEARNING_STEPS <= _learning_steps_done);
     } else {
        DrawResultInfo();
        _finish_status = true;
@@ -95,14 +95,9 @@ void MainWindow::StepButtonSlot()
 void MainWindow::ResultButtonSlot()
 {
     while (_finish_status == false) {
-        bool is_step_done = _builder.BuildStep(_rest_points);
-        _finish_status = (is_step_done == false);
-        QMap<double,double> small_dist_to_recog_line_points = _builder.GetSmallDistToRecogLinePoints();
-        if (small_dist_to_recog_line_points.isEmpty()) {
-            _finish_status = true;
-        } else {
-            RemovePointsFrom(small_dist_to_recog_line_points, _rest_points);
-        }
+        ++_learning_steps_done;
+        bool is_step_done = _builder.BuildStep(_in_points);
+        _finish_status = (is_step_done == false) || (_MAX_LEARNING_STEPS <= _learning_steps_done);
     }
     DrawResultInfo();
     _finish_status = true;
@@ -217,7 +212,7 @@ void MainWindow::AddGraphOnPlot(const QMap<double,double> &points, const DrawInf
     graph->setName(info.legend);
 }
 
-void MainWindow::DrawStepInfo(const QMap<double, double> &small_error_points, const QMap<double, double> &recog_line_points, double recog_line_angle_coef, double recog_line_shift)
+void MainWindow::DrawStepInfo(const QMap<double, double> &small_dist_to_recog_line_points, const QMap<double, double> &recog_line_points, double recog_line_angle_coef, double recog_line_shift)
 {
     QMap<double,double> cntl_points = CalcValuesOnTheSameArgs(_cntl, _in_points);
     QCPRange new_y_range = _plot_widget->yAxis->range();
@@ -232,7 +227,7 @@ void MainWindow::DrawStepInfo(const QMap<double, double> &small_error_points, co
 
     ClearPlot();
     AddGraphOnPlot(_rest_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::blue, _INPUT_LEGEND));
-    AddGraphOnPlot(small_error_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCross, Qt::red, "Исключаемые из рассмотрения точки"));
+    AddGraphOnPlot(small_dist_to_recog_line_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCross, Qt::red, "Точки, которые определили распознанную прямую"));
     AddGraphOnPlot(cntl_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::yellow, _OUTPUT_LEGEND));
     AddGraphOnPlot(recog_line_points, DrawInfo(QCPGraph::lsLine, QCPScatterStyle::ssNone, Qt::black,
                                          QString("Распознанная прямая %1x + %2").arg(recog_line_angle_coef).arg(recog_line_shift)));
