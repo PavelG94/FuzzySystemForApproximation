@@ -26,7 +26,7 @@ void MainWindow::SetData(UnaryFunc &f, const QCPRange &x_range, double step)
         if (f.IsLastResValid() == true) {
             //вставка без повторов
             _in_points.insert(x, y);
-            _rest_points.insert(x, y);
+            _modified_in_points.insert(x, y);
         }
         if (y < y_range.lower) y_range.lower = y;
         else if (y > y_range.upper) y_range.upper = y;
@@ -50,7 +50,7 @@ void MainWindow::SetData(const QVector<double> &x_vals, const QVector<double> &y
         double x = x_vals[i], y = y_vals[i];
         //вставка без повторов
         _in_points.insert(x,y);
-        _rest_points.insert(x,y);
+        _modified_in_points.insert(x,y);
 
         if (x < x_range.lower) x_range.lower = x;
         else if (x > x_range.upper) x_range.upper = x;
@@ -75,7 +75,7 @@ void MainWindow::StepButtonSlot()
         DrawResultInfo();
         return;
     }
-    bool is_step_done = _builder.BuildStep(_in_points);
+    bool is_step_done = _builder.BuildStep();
     if(is_step_done) {
         ++_learning_steps_done;
         QMap<double,double> small_dist_to_recog_line_points = _builder.GetSmallDistToRecogLinePoints();
@@ -85,6 +85,7 @@ void MainWindow::StepButtonSlot()
         UnaryFunc line = std::function<double(double)>([a,b](double x)->double { return a*x + b; });
         QMap<double,double> line_points = CalcValuesOnTheSameArgs(line, _in_points);
         DrawStepInfo(small_dist_to_recog_line_points, line_points, a, b);
+        _modified_in_points = _builder.GetModifiedInPoints();
         _finish_status = (_MAX_LEARNING_STEPS <= _learning_steps_done);
     } else {
        DrawResultInfo();
@@ -96,7 +97,7 @@ void MainWindow::ResultButtonSlot()
 {
     while (_finish_status == false) {
         ++_learning_steps_done;
-        bool is_step_done = _builder.BuildStep(_in_points);
+        bool is_step_done = _builder.BuildStep();
         _finish_status = (is_step_done == false) || (_MAX_LEARNING_STEPS <= _learning_steps_done);
     }
     DrawResultInfo();
@@ -162,6 +163,7 @@ void MainWindow::PrepareToLearning()
         }
     }
     _builder.SetData(&_cntl, max_abs_arg, max_abs_value);
+    _builder.SetInput(_in_points);
 }
 
 void MainWindow::RemovePointsFrom(QMap<double, double> &points_for_remove, QMap<double, double> &from_points)
@@ -226,7 +228,7 @@ void MainWindow::DrawStepInfo(const QMap<double, double> &small_dist_to_recog_li
     _plot_widget->yAxis->setRange(new_y_range);
 
     ClearPlot();
-    AddGraphOnPlot(_rest_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::blue, _INPUT_LEGEND));
+    AddGraphOnPlot(_modified_in_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::blue, _INPUT_LEGEND));
     AddGraphOnPlot(small_dist_to_recog_line_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCross, Qt::red, "Точки, которые определили распознанную прямую"));
     AddGraphOnPlot(cntl_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::yellow, _OUTPUT_LEGEND));
     AddGraphOnPlot(recog_line_points, DrawInfo(QCPGraph::lsLine, QCPScatterStyle::ssNone, Qt::black,

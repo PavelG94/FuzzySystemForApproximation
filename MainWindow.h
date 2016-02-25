@@ -56,7 +56,7 @@ private:
     int _learning_steps_done;
 
     QMap<double, double> _in_points;
-    QMap<double, double> _rest_points;
+    QMap<double, double> _modified_in_points;
     SugenoCntl _cntl;
     CntlBuilder _builder;
     bool _finish_status;

@@ -20,11 +20,13 @@ public:
 
     CntlBuilder();
     void SetData(SugenoCntl *cntl, double max_abs_arg, double max_abs_value);
+    void SetInput(const QMap<double,double> &in_points);
 
     //Возвращает true, если было добавлено новое правило
-    bool BuildStep(const QMap<double,double> &rest_points);
+    bool BuildStep();
 
     QMap<double,double> GetSmallErrorPoints() const { return _small_error_points; }
+    QMap<double,double> GetModifiedInPoints() const { return _in_points; }
     QMap<double,double> GetSmallDistToRecogLinePoints() const { return _small_dist_to_recog_line_points; }
 
     double GetAngleCoefOfRecogLine() const { return _angle_coef; }
@@ -32,9 +34,12 @@ public:
 
 private:
     QMap<double,double> CalcErrors(const QMap<double,double> &points);
-    void UsePointsForRecog(const QMap<double, double> &points);
-    double CalcDistToRecogLine(double normal_angle_in_rad, double normal_length, double x, double y);
+    void UseErrorsForRecog();
     void FindPointsWithSmallDistToRecogLine(const QMap<double,double> &points);
+    void RecalcInPointsValues();
+
+
+    double CalcDistToRecogLine(double normal_angle_in_rad, double normal_length, double x, double y);
     void CalcSmallCntlErrorPoints(const QMap<double,double> &points);
 
 private:
@@ -42,6 +47,8 @@ private:
     SugenoCntl *_cntl = nullptr;
     HoughTransform _hough;
     double _angle_coef = 0, _line_shift = 0;
+    QMap<double,double> _in_points;
+    QMap<double,double> _errors;
     QMap<double,double> _small_dist_to_recog_line_points;
     QMap<double,double> _small_error_points;
 
