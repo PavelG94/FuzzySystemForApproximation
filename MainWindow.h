@@ -83,6 +83,8 @@ private:
     QCustomPlot *_plot_widget = nullptr;
     QAction *_step_act = nullptr;
     QAction *_result_act = nullptr;
+
+    QStatusBar *_status_bar;
 };
 
 #endif // MAINWINDOW_H

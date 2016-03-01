@@ -17,6 +17,7 @@ MainWindow::~MainWindow()
 {
     delete _tool_bar;
     delete _plot_widget;
+    delete _status_bar;
 }
 
 void MainWindow::StepClickedSlot()
@@ -130,9 +131,13 @@ void MainWindow::InitMainWindow()
     this->setWindowTitle(" ");
 
     InitToolBar();
+
     _plot_widget = new QCustomPlot;
     this->addToolBar(Qt::TopToolBarArea, _tool_bar);
     this->setCentralWidget(_plot_widget);
+
+    _status_bar = new QStatusBar;
+    this->setStatusBar(_status_bar);
 }
 
 void MainWindow::AddGraphOnPlot(const QMap<double,double> &points, const DrawInfo &draw_info)
@@ -187,7 +192,10 @@ void MainWindow::DrawStepInfo()
     AddGraphOnPlot(line_points, _line_points_draw_info);
     RedrawPlot();
 
-    qDebug() << "Вид распознанной прямой: " << QString("%1*x + %2").arg(angle_coef).arg(line_shift);
+    QString line_info_msg = QString("распознанная прямая: %1*x + %2").arg(angle_coef).arg(line_shift);
+    double sum_error = _builder->CalcSumError();
+    QString sum_error_msg = QString("суммарная ошибка: %1").arg(sum_error);
+    _status_bar->showMessage(line_info_msg + " | " + sum_error_msg);
 }
 
 void MainWindow::DrawResultInfo()
@@ -201,5 +209,6 @@ void MainWindow::DrawResultInfo()
     RedrawPlot();
 
     double sum_error = _builder->CalcSumError();
-    qDebug() << "Суммарная ошибка работы контроллера: " << sum_error;
+    QString sum_error_msg = QString("суммарная ошибка: %1").arg(sum_error);
+    _status_bar->showMessage(sum_error_msg);
 }
