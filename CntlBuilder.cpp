@@ -102,7 +102,7 @@ QMap<double, double> CntlBuilder::CalcErrors(const QMap<double, double> &points)
     points_it.toFront();
     while (points_it.hasNext()) {
         points_it.next();
-        double x = points_it.key(), error = points_it.value();
+        double x = points_it.key(), error = qAbs(points_it.value());
         double n_error = error/_max_error;
         errors.insert(x, n_error);
     }
