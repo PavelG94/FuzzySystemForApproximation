@@ -7,22 +7,6 @@
 #include "HoughTransform.h"
 #include "SugenoCntl.h"
 
-/*
-{ Настройку взаимодействия с MainWindow можно прописать в отдельной фунцкии }
-    * Данные: _cntl, _hough, _steps_done, ...
-    * double CalcSumError(...);
-    * void SetData(UnaryFunc &f, double x_min, double x_max, double step);
-    * void SetData(const QVector<double> &x_vals, const QVector<double> &y_vals);
-    * bool BuildStep(): true, если шаг выполнене;
-    * GetInputPoints(...);
-    * GetRecogLinePoints(...): точки из входных, которые дали прямую;
-    * double GetAngleCoefOfRecogLine() const { return _angle_coef; }
-    * double GetShiftOfRecogLine() const { return _line_shift; }
-    * GetRecogLine(...)-> UnaryFuncBase/UnaryFunc;
-    * GetController(...)-> UnaryFuncBase/SugenoCntl;
-
- */
-
 class CntlBuilder
 {
 public:

@@ -12,18 +12,6 @@
 #include "SugenoCntl.h"
 #include "CntlBuilder.h"
 
-/*
- * SetAxisRanges(...);
- * SetBuilder(...);
- * void AddGraphOnPlot(const QMap<double,double> &points, const DrawInfo info);
- * void RedrawPlot();
- * void ClearPlot();
- * DrawInfo: enum Type {tLINE, tSCATTER} type, int style, QColor color, QString legend;
- Взаимодействие:
- * step button -> BuildStepSlot() -> DrawStepInfoSlot()
- * result button -> BuildSlot() -> DrawResultsInfoSlot()
-*/
-
 class MainWindow : public QMainWindow
 {
     Q_OBJECT

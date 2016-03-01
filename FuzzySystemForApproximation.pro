@@ -39,6 +39,7 @@ HEADERS  += \
 
 DISTFILES += \
     Outlines \
-    README.md
+    README.md \
+    Conclusions
 
 FORMS +=

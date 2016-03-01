@@ -82,8 +82,8 @@ bool CntlBuilder::BuildStep()
 
 void CntlBuilder::Build()
 {
-    bool is_done = false;
-    while (is_done == false) {
+    bool is_done = true;
+    while (is_done == true) {
         is_done = BuildStep();
     }
 }
