@@ -5,63 +5,75 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    _input_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::blue, _INPUT_POINTS_LEGEND, QCPScatterStyle::ssCircle);
+    _cntl_output_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::yellow, _CNTL_OUTPUT_LEGEND, QCPScatterStyle::ssCircle);
+    _recog_line_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::red, _RECOG_LINE_POINTS_LEGEND, QCPScatterStyle::ssCross);
+    _line_points_draw_info = DrawInfo(DrawInfo::tLINE, Qt::black, _LINE_POINTS_LEGEND);
+
     InitMainWindow();
 }
+
 MainWindow::~MainWindow()
 {
     delete _tool_bar;
     delete _plot_widget;
 }
 
-void MainWindow::SetData(UnaryFunc &f, const QCPRange &x_range, double step)
+void MainWindow::StepClickedSlot()
 {
-    assert(0 < step);
-    int points_cnt = (x_range.upper - x_range.lower) / step; // [lower, upper)
-    assert(1 < points_cnt);
-    QCPRange y_range;
-    y_range.lower = f(x_range.lower); y_range.upper = f(x_range.lower);
-    for (int i = 0; i < points_cnt; ++i) {
-        double x = x_range.lower + i*step;
-        double y  = f(x);
-        if (f.IsLastResValid() == true) {
-            //вставка без повторов
-            _in_points.insert(x, y);
-            _rest_points.insert(x, y);
-        }
-        if (y < y_range.lower) y_range.lower = y;
-        else if (y > y_range.upper) y_range.upper = y;
+    assert(_builder != nullptr);
+    bool is_step_done = _builder->BuildStep();
+    if (is_step_done) {
+        DrawStepInfo();
+    } else {
+        DrawResultInfo();
     }
-    InitPlotWidget(x_range, y_range);
-    PrepareToLearning();
-    _learning_steps_done = 0;
-    _finish_status = false;
 }
 
-void MainWindow::SetData(const QVector<double> &x_vals, const QVector<double> &y_vals)
+void MainWindow::ResultClickedSlot()
 {
-    //Возможен случай, когда во входной последовательности присутствует шум
-    assert(1 < x_vals.size());
-    assert(y_vals.size() == x_vals.size());
+    assert(_builder != nullptr);
+    _builder->Build();
+    DrawResultInfo();
+}
 
-    QCPRange x_range, y_range;
-    x_range.lower = x_vals[0]; x_range.upper = x_vals[0];
-    y_range.lower = y_vals[0]; y_range.upper = y_vals[0];
-    for (int i = 0; i < x_vals.size(); ++i) {
-        double x = x_vals[i], y = y_vals[i];
-        //вставка без повторов
-        _in_points.insert(x,y);
-        _rest_points.insert(x,y);
-
-        if (x < x_range.lower) x_range.lower = x;
-        else if (x > x_range.upper) x_range.upper = x;
-
-        if (y < y_range.lower) y_range.lower = y;
-        else if (y > y_range.upper) y_range.upper = y;
+QMap<double,double> MainWindow::CalcLinePointsForDraw(double angle_coef, double line_shift)
+{
+    QMap<double,double> line_points;
+    QMap<double,double> input_points = _builder->GetInputPoints();
+    QMapIterator<double,double> it(input_points);
+    while (it.hasNext()) {
+        it.next();
+        double x = it.key();
+        double y = angle_coef * x + line_shift;
+        line_points.insert(x,y);
     }
-    InitPlotWidget(x_range, y_range);
-    PrepareToLearning();
-    _learning_steps_done = 0;
-    _finish_status = false;
+    return line_points;
+}
+
+QMap<double, double> MainWindow::CalcCntlPointsForDraw()
+{
+    SugenoCntl &cntl = _builder->GetController();
+    QMap<double,double> input_points = _builder->GetInputPoints();
+    QMap<double,double> cntl_points;
+    QMapIterator<double,double> it(input_points);
+    while (it.hasNext()) {
+        it.next();
+        double x = it.key();
+        double y_cntl = cntl(x);
+        cntl_points.insert(x,y_cntl);
+    }
+    return cntl_points;
+}
+
+void MainWindow::RedrawPlot()
+{
+    _plot_widget->replot();
+}
+
+void MainWindow::ClearPlot()
+{
+    _plot_widget->clearGraphs();
 }
 
 void MainWindow::SetAxisRanges(const QCPRange &x_range, const QCPRange &y_range)
@@ -69,38 +81,17 @@ void MainWindow::SetAxisRanges(const QCPRange &x_range, const QCPRange &y_range)
     InitPlotWidget(x_range, y_range);
 }
 
-void MainWindow::StepButtonSlot()
+void MainWindow::SetBuilder(CntlBuilder *builder)
 {
-    if (_finish_status == true) {
-        DrawResultInfo();
-        return;
-    }
-    bool is_step_done = _builder.BuildStep(_in_points);
-    if(is_step_done) {
-        ++_learning_steps_done;
-        QMap<double,double> small_dist_to_recog_line_points = _builder.GetSmallDistToRecogLinePoints();
-        //Входное множество точек не меняется на протяжении всего обучения!
-        double a = _builder.GetAngleCoefOfRecogLine(),
-               b = _builder.GetShiftOfRecogLine();
-        UnaryFunc line = std::function<double(double)>([a,b](double x)->double { return a*x + b; });
-        QMap<double,double> line_points = CalcValuesOnTheSameArgs(line, _in_points);
-        DrawStepInfo(small_dist_to_recog_line_points, line_points, a, b);
-        _finish_status = (_MAX_LEARNING_STEPS <= _learning_steps_done);
-    } else {
-       DrawResultInfo();
-       _finish_status = true;
-    }
+    _builder = builder;
 }
 
-void MainWindow::ResultButtonSlot()
+void MainWindow::DrawInputPoints()
 {
-    while (_finish_status == false) {
-        ++_learning_steps_done;
-        bool is_step_done = _builder.BuildStep(_in_points);
-        _finish_status = (is_step_done == false) || (_MAX_LEARNING_STEPS <= _learning_steps_done);
-    }
-    DrawResultInfo();
-    _finish_status = true;
+    assert(_builder != nullptr);
+    QMap<double, double> input_points = _builder->GetInputPoints();
+    AddGraphOnPlot(input_points, _input_points_draw_info);
+    RedrawPlot();
 }
 
 void MainWindow::InitToolBar()
@@ -109,8 +100,8 @@ void MainWindow::InitToolBar()
     _tool_bar->setMovable(false);
     _tool_bar->setFloatable(false);
 
-    _tool_bar->addAction("Step", this, SLOT(StepButtonSlot()));
-    _tool_bar->addAction("Result", this, SLOT(ResultButtonSlot()));
+    _step_act = _tool_bar->addAction("Step", this, SLOT(StepClickedSlot()));
+    _result_act = _tool_bar->addAction("Result", this, SLOT(ResultClickedSlot()));
 }
 
 void MainWindow::InitPlotWidget(const QCPRange &x_range, const QCPRange &y_range)
@@ -130,11 +121,6 @@ void MainWindow::InitPlotWidget(const QCPRange &x_range, const QCPRange &y_range
     //Диапазоны значений на осях
     _plot_widget->xAxis->setRange(x_range);
     _plot_widget->yAxis->setRange(y_range);
-
-    if (_in_points.isEmpty() == false) {
-        AddGraphOnPlot(_in_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::blue, _INPUT_LEGEND));
-        RedrawPlot();
-    }
 }
 
 void MainWindow::InitMainWindow()
@@ -149,45 +135,7 @@ void MainWindow::InitMainWindow()
     this->setCentralWidget(_plot_widget);
 }
 
-void MainWindow::PrepareToLearning()
-{
-    double max_abs_arg = 0, max_abs_value = 0;
-    QMapIterator<double,double> it(_in_points);
-    while (it.hasNext()) {
-        it.next();
-        double x = it.key(), y = it.value();
-        if (max_abs_value < qAbs(y)) {
-            max_abs_arg = qAbs(x);
-            max_abs_value = qAbs(y);
-        }
-    }
-    _builder.SetData(&_cntl, max_abs_arg, max_abs_value);
-}
-
-void MainWindow::RemovePointsFrom(QMap<double, double> &points_for_remove, QMap<double, double> &from_points)
-{
-    QMapIterator<double,double> it(points_for_remove);
-    while (it.hasNext()) {
-        it.next();
-        double x = it.key();
-        from_points.remove(x);
-    }
-}
-
-QMap<double, double> MainWindow::CalcValuesOnTheSameArgs(UnaryFuncBase &f, const QMap<double, double> &points)
-{
-    QMap<double,double> out_points;
-    QMapIterator<double,double> it(points);
-    while (it.hasNext()) {
-        it.next();
-        double x = it.key();
-        double y = f(x);
-        out_points.insert(x,y);
-    }
-    return out_points;
-}
-
-void MainWindow::AddGraphOnPlot(const QMap<double,double> &points, const DrawInfo info)
+void MainWindow::AddGraphOnPlot(const QMap<double,double> &points, const DrawInfo &draw_info)
 {
     QCPGraph *graph = _plot_widget->addGraph();
     QVector<double> x_vals(points.size()), y_vals(points.size());
@@ -198,70 +146,60 @@ void MainWindow::AddGraphOnPlot(const QMap<double,double> &points, const DrawInf
         y_vals[i] = it.value();
     }
     graph->setData(x_vals, y_vals);
-    graph->setLineStyle(info.line_style);
-    if (info.line_style == QCPGraph::lsNone) {
-        double scatter_size = (info.scatter_shape == QCPScatterStyle::ssCircle)? 4: 10;
+    QCPGraph::LineStyle line_style;
+    if (draw_info.type == DrawInfo::tLINE) {
+        line_style = QCPGraph::lsLine;
+    } else if (draw_info.type == DrawInfo::tSCATTER) {
+        line_style = QCPGraph::lsNone;
+    }
+    graph->setLineStyle(line_style);
+    if (line_style == QCPGraph::lsNone) {
+        double scatter_size = (draw_info.style == QCPScatterStyle::ssCircle)? 4: 10;
+        QCPScatterStyle::ScatterShape shape = QCPScatterStyle::ScatterShape(draw_info.style);
+
         //QCPScatterStyle(ScatterShape shape, const QColor &color, const QColor &fill, double size);
-        graph->setScatterStyle(QCPScatterStyle(info.scatter_shape, info.color, info.color, scatter_size));
-    } else {
+        graph->setScatterStyle(QCPScatterStyle(shape, draw_info.color, draw_info.color, scatter_size));
+    } else if (line_style == QCPGraph::lsLine){
         const int pen_width = 1;
-        QPen pen(info.color);
+        QPen pen(draw_info.color);
         pen.setWidth(pen_width);
         graph->setPen(pen);
     }
-    graph->setName(info.legend);
+    graph->setName(draw_info.legend);
 }
 
-void MainWindow::DrawStepInfo(const QMap<double, double> &small_dist_to_recog_line_points, const QMap<double, double> &recog_line_points, double recog_line_angle_coef, double recog_line_shift)
+void MainWindow::DrawStepInfo()
 {
-    QMap<double,double> cntl_points = CalcValuesOnTheSameArgs(_cntl, _in_points);
-    QCPRange new_y_range = _plot_widget->yAxis->range();
-    QMapIterator<double,double> it(cntl_points);
-    while (it.hasNext()) {
-        it.next();
-        double y = it.value();
-        if (y < new_y_range.lower) new_y_range.lower = y - 1;
-        else if (new_y_range.upper < y) new_y_range.upper = y + 1;
-    }
-    _plot_widget->yAxis->setRange(new_y_range);
+
+    QMap<double,double> input_points = _builder->GetInputPoints();
+
+    QMap<double,double> cntl_points = CalcCntlPointsForDraw();
+
+    double angle_coef = _builder->GetRecogLineAngleCoef(), line_shift = _builder->GetRecogLineShift();
+    QMap<double,double> line_points = CalcLinePointsForDraw(angle_coef, line_shift);
+
+    QMap<double,double> recog_line_points = _builder->GetRecogLinePoints();
 
     ClearPlot();
-    AddGraphOnPlot(_rest_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::blue, _INPUT_LEGEND));
-    AddGraphOnPlot(small_dist_to_recog_line_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCross, Qt::red, "Точки, которые определили распознанную прямую"));
-    AddGraphOnPlot(cntl_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::yellow, _OUTPUT_LEGEND));
-    AddGraphOnPlot(recog_line_points, DrawInfo(QCPGraph::lsLine, QCPScatterStyle::ssNone, Qt::black,
-                                         QString("Распознанная прямая %1x + %2").arg(recog_line_angle_coef).arg(recog_line_shift)));
+    AddGraphOnPlot(input_points, _input_points_draw_info);
+    AddGraphOnPlot(recog_line_points, _recog_line_points_draw_info);
+    AddGraphOnPlot(cntl_points, _cntl_output_draw_info);
+    AddGraphOnPlot(line_points, _line_points_draw_info);
     RedrawPlot();
+
+    qDebug() << "Вид распознанной прямой: " << QString("%1*x + %2").arg(angle_coef).arg(line_shift);
 }
 
 void MainWindow::DrawResultInfo()
 {
-    QMap<double,double> cntl_points = CalcValuesOnTheSameArgs(_cntl, _in_points);
-    QCPRange new_y_range = _plot_widget->yAxis->range();
-    QMapIterator<double,double> it(cntl_points);
-    while (it.hasNext()) {
-        it.next();
-        double y = it.value();
-        if (y < new_y_range.lower) new_y_range.lower = y - 1;
-        else if (new_y_range.upper < y) new_y_range.upper = y + 1;
-    }
-    _plot_widget->yAxis->setRange(new_y_range);
+    QMap<double,double> input_points = _builder->GetInputPoints();
+    QMap<double,double> cntl_points = CalcCntlPointsForDraw();
 
     ClearPlot();
-    AddGraphOnPlot(_in_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::blue, _INPUT_LEGEND));
-    AddGraphOnPlot(cntl_points, DrawInfo(QCPGraph::lsNone, QCPScatterStyle::ssCircle, Qt::yellow, _OUTPUT_LEGEND));
+    AddGraphOnPlot(input_points, _input_points_draw_info);
+    AddGraphOnPlot(cntl_points, _cntl_output_draw_info);
     RedrawPlot();
 
-    double sum_error = CntlBuilder::CalcSumError(_cntl, _in_points);
-    qDebug() << "Sum error is " << sum_error;
-}
-
-void MainWindow::RedrawPlot()
-{
-    _plot_widget->replot();
-}
-
-void MainWindow::ClearPlot()
-{
-    _plot_widget->clearGraphs();
+    double sum_error = _builder->CalcSumError();
+    qDebug() << "Суммарная ошибка работы контроллера: " << sum_error;
 }

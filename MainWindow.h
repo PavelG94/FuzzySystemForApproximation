@@ -1,4 +1,4 @@
-#ifndef MAINWINDOW_H
+﻿#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QString>
@@ -12,6 +12,18 @@
 #include "SugenoCntl.h"
 #include "CntlBuilder.h"
 
+/*
+ * SetAxisRanges(...);
+ * SetBuilder(...);
+ * void AddGraphOnPlot(const QMap<double,double> &points, const DrawInfo info);
+ * void RedrawPlot();
+ * void ClearPlot();
+ * DrawInfo: enum Type {tLINE, tSCATTER} type, int style, QColor color, QString legend;
+ Взаимодействие:
+ * step button -> BuildStepSlot() -> DrawStepInfoSlot()
+ * result button -> BuildSlot() -> DrawResultsInfoSlot()
+*/
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -19,52 +31,58 @@ class MainWindow : public QMainWindow
 public:
     struct DrawInfo
     {
-        DrawInfo(QCPGraph::LineStyle line_style, QCPScatterStyle::ScatterShape scatter_shape, QColor color, const QString& legend)
-            : line_style(line_style), scatter_shape(scatter_shape), color(color), legend(legend) { }
-        QCPGraph::LineStyle line_style;
-        QCPScatterStyle::ScatterShape scatter_shape;
+        enum Type {tLINE, tSCATTER};
+        DrawInfo() { }
+        //style: значение QCPScatterStyle, если type == tLINE; иначе 0;
+        DrawInfo(Type type, QColor color, const QString& legend, int style = 0)
+            : type(type), color(color), legend(legend), style(style) { }
+
+        Type type;
         QColor color;
         QString legend;
+        int style;
     };
+
     explicit MainWindow(QWidget *parent = 0);
-    ~MainWindow();
 
-    void SetData(UnaryFunc &f, const QCPRange &x_range, double step);
-    void SetData(const QVector<double> &x_vals, const QVector<double> &y_vals);
     void SetAxisRanges(const QCPRange &x_range, const QCPRange &y_range);
+    void SetBuilder(CntlBuilder *builder);
+    void DrawInputPoints();
 
-public slots:
-    void StepButtonSlot();
-    void ResultButtonSlot();
+     ~MainWindow();
+
+private slots:
+    void StepClickedSlot();
+    void ResultClickedSlot();
 
 private:
     void InitToolBar();
     void InitPlotWidget(const QCPRange &x_range, const QCPRange &y_range);
     void InitMainWindow();
-    void PrepareToLearning();
-    void RemovePointsFrom(QMap<double,double> &points_for_remove, QMap<double,double> &from_points);
-    QMap<double,double> CalcValuesOnTheSameArgs(UnaryFuncBase &f, const QMap<double,double> &points);
 
-    void AddGraphOnPlot(const QMap<double,double> &points, const DrawInfo info);
-    void DrawStepInfo(const QMap<double,double> &small_error_points, const QMap<double,double>& recog_line_points, double recog_line_angle_coef, double recog_line_shift);
+    QMap<double,double> CalcLinePointsForDraw(double angle_coef, double line_shift);
+    QMap<double,double> CalcCntlPointsForDraw();
+
+    void AddGraphOnPlot(const QMap<double,double> &points, const DrawInfo &draw_info);
+    void DrawStepInfo();
     void DrawResultInfo();
     void RedrawPlot();
     void ClearPlot();
 
 private:
-    const int _MAX_LEARNING_STEPS = 100;
-    int _learning_steps_done;
+    const QString _INPUT_POINTS_LEGEND = "Вход";
+    const QString _CNTL_OUTPUT_LEGEND = "Выход контроллера";
+    const QString _RECOG_LINE_POINTS_LEGEND = "Точки, которые определили распознанную прямую";
+    const QString _LINE_POINTS_LEGEND = "Распознанная прямая";
+    DrawInfo _input_points_draw_info, _cntl_output_draw_info;
+    DrawInfo _recog_line_points_draw_info, _line_points_draw_info;
 
-    QMap<double, double> _in_points;
-    QMap<double, double> _rest_points;
-    SugenoCntl _cntl;
-    CntlBuilder _builder;
-    bool _finish_status;
+    CntlBuilder *_builder = nullptr;
 
-    const QString _INPUT_LEGEND = "Входные точки";
-    const QString _OUTPUT_LEGEND = "Выход контроллера";
     QToolBar *_tool_bar = nullptr;
     QCustomPlot *_plot_widget = nullptr;
+    QAction *_step_act = nullptr;
+    QAction *_result_act = nullptr;
 };
 
 #endif // MAINWINDOW_H
