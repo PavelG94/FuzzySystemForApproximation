@@ -19,6 +19,8 @@ public:
 
     double CalcSumError();
     QMap<double,double> GetInputPoints() const { return _input_points; }
+    QMap<double,double> GetModifInputPoints() const { return _modif_input_points; }
+
     QMap<double,double> GetRecogLinePoints() const { return _recog_line_points; }
     double GetRecogLineAngleCoef() const { return _recog_line_angle_coef; }
     double GetRecogLineShift() const { return _recog_line_shift; }
@@ -38,6 +40,7 @@ private:
 
 private:
     QMap<double,double> _input_points;
+    QMap<double,double> _modif_input_points;
     QMap<double,double> _errors;
     QMap<double,double> _recog_line_points;
     double _recog_line_angle_coef = 0, _recog_line_shift = 0;

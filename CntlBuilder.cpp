@@ -17,13 +17,14 @@ void CntlBuilder::SetData(UnaryFunc &f, double x_min, double x_max, double step)
         if (f.IsLastResValid() == true) {
             //вставка без повторов
             _input_points.insert(x,y);
+            _modif_input_points.insert(x,y);
             if (max_abs_y < qAbs(y)) {
                 x_of_max_abs = x;
                 max_abs_y = qAbs(y);
             }
         }
     }
-    InitErrorsVector(_input_points);
+    InitErrorsVector(_modif_input_points);
     PrepareToLearning(x_of_max_abs, max_abs_y);
     _is_ready_to_build = true;
 }
@@ -39,18 +40,21 @@ void CntlBuilder::SetData(const QVector<double> &x_vals, const QVector<double> &
         double x = x_vals[i], y = y_vals[i];
         //вставка без повторов
         _input_points.insert(x,y);
+        _modif_input_points.insert(x,y);
         if (max_abs_y < qAbs(y)) {
             x_of_max_abs = x;
             max_abs_y = qAbs(y);
         }
     }
-    InitErrorsVector(_input_points);
+    InitErrorsVector(_modif_input_points);
     PrepareToLearning(x_of_max_abs, max_abs_y);
     _is_ready_to_build = true;
 }
 
 double CntlBuilder::CalcSumError()
 {
+    /* Суммарная ошибка считается на основе входных точек (не изменённых в процессе обучения!)
+     и выхода контроллера */
     double sum_error(0);
     QMapIterator<double,double> it(_input_points);
     while (it.hasNext()) {
@@ -71,7 +75,7 @@ bool CntlBuilder::BuildStep()
     if (_max_error <= MAX_ERROR_EPS) return false;  //Условие остановки обучения
 
     RecogNextLine();
-    _recog_line_points = _hough.GetPointsFromRecogLine(_input_points);
+    _recog_line_points = _hough.GetPointsFromRecogLine(_modif_input_points);
     if (_recog_line_points.size() < MIN_POINTS_FOR_LINE_DEF) return false; //Условие остановки обучения
 
     CalcClarifiedRecogLineParams(_recog_line_points);
@@ -116,7 +120,7 @@ void CntlBuilder::RecalcErrors()
     }
 
     _max_error = 0;
-    QMutableMapIterator<double,double> points_it(_input_points);
+    QMutableMapIterator<double,double> points_it(_modif_input_points);
     while(points_it.hasNext()) {
         points_it.next();
         double x = points_it.key(), y = points_it.value();
@@ -146,7 +150,7 @@ void CntlBuilder::RecogNextLine()
     QMapIterator<double,double> errors_it(_errors);
     while (errors_it.hasNext()) {
         errors_it.next();
-        double x = errors_it.key(), y = _input_points.value(x), error = errors_it.value();
+        double x = errors_it.key(), y = _modif_input_points.value(x), error = errors_it.value();
         _hough.AddError(x,y,error);
     }
 }

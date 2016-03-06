@@ -6,6 +6,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     _input_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::blue, _INPUT_POINTS_LEGEND, QCPScatterStyle::ssCircle);
+    _modif_input_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::blue, _MODIF_INPUT_POINTS_LEGEND, QCPScatterStyle::ssCircle);
     _cntl_output_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::yellow, _CNTL_OUTPUT_LEGEND, QCPScatterStyle::ssCircle);
     _recog_line_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::red, _RECOG_LINE_POINTS_LEGEND, QCPScatterStyle::ssCross);
     _line_points_draw_info = DrawInfo(DrawInfo::tLINE, Qt::black, _LINE_POINTS_LEGEND);
@@ -176,17 +177,20 @@ void MainWindow::AddGraphOnPlot(const QMap<double,double> &points, const DrawInf
 void MainWindow::DrawStepInfo()
 {
 
-    QMap<double,double> input_points = _builder->GetInputPoints();
+    QMap<double,double> modif_input_points = _builder->GetModifInputPoints();
 
     QMap<double,double> cntl_points = CalcCntlPointsForDraw();
 
     double angle_coef = _builder->GetRecogLineAngleCoef(), line_shift = _builder->GetRecogLineShift();
+
+    //распознанная прямая
     QMap<double,double> line_points = CalcLinePointsForDraw(angle_coef, line_shift);
 
+    //точки, по которым строился нечёткий терм для последнего добавленного правила
     QMap<double,double> recog_line_points = _builder->GetRecogLinePoints();
 
     ClearPlot();
-    AddGraphOnPlot(input_points, _input_points_draw_info);
+    AddGraphOnPlot(modif_input_points, _modif_input_points_draw_info);
     AddGraphOnPlot(recog_line_points, _recog_line_points_draw_info);
     AddGraphOnPlot(cntl_points, _cntl_output_draw_info);
     AddGraphOnPlot(line_points, _line_points_draw_info);
