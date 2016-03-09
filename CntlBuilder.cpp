@@ -74,7 +74,8 @@ bool CntlBuilder::BuildStep()
     _recog_line_points = _hough.GetPointsFromRecogLine(_input_points);
     if (_recog_line_points.size() < MIN_POINTS_FOR_LINE_DEF) return false; //Условие остановки обучения
 
-    CalcClarifiedRecogLineParams(_recog_line_points);
+    _recog_line_angle_coef = _hough.GetLineAngleCoef();
+    _recog_line_shift = _hough.GetLineShift();
     AddNewRule(_recog_line_points, _recog_line_angle_coef, _recog_line_shift);
     ++_steps_done;
     return true;
@@ -111,30 +112,18 @@ void CntlBuilder::PrepareToLearning(double x_of_max_abs_y, double max_abs_y)
 
 void CntlBuilder::RecalcErrors()
 {
-    if (_cntl.RulesCnt() < 1) {
+    if (_cntl.RulesCnt() == 0) {
         return;
     }
-
     _max_error = 0;
     QMapIterator<double,double> points_it(_input_points);
     while(points_it.hasNext()) {
         points_it.next();
         double x = points_it.key(), y = points_it.value();
         double y_cntl = _cntl(x);
-        double error = qAbs(y - y_cntl);
+        double error = (y - y_cntl)*(y - y_cntl)/2;
         _errors[x] = error;
-        if (error > _max_error) _max_error = error;
-    }
-
-    if (_max_error == 0) return;
-
-    //Нормировка
-    QMutableMapIterator<double,double> errors_it(_errors);
-    while (errors_it.hasNext()) {
-        errors_it.next();
-        double error = errors_it.value();
-        double n_error = error/_max_error;
-        errors_it.value() = n_error;
+        if (_max_error < error) _max_error = error;
     }
 }
 
@@ -144,7 +133,9 @@ void CntlBuilder::RecogNextLine()
     QMapIterator<double,double> errors_it(_errors);
     while (errors_it.hasNext()) {
         errors_it.next();
-        double x = errors_it.key(), y = _input_points.value(x), error = errors_it.value();
+        double x = errors_it.key();
+        double y = _input_points.value(x) - _cntl(x);   //_cntl(x) == 0, если контроллер на x не определён
+        double error = errors_it.value();
         _hough.AddError(x,y,error);
     }
 }
