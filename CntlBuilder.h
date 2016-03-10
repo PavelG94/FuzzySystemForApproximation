@@ -17,7 +17,10 @@ public:
     void SetData(UnaryFunc &f, double x_min, double x_max, double step);
     void SetData(const QVector<double> &x_vals, const QVector<double> &y_vals);
 
+    double LossFunc(double y, double y_cntl);
+    double NegGradient(double y, double y_cntl);
     double CalcSumError();
+
     QMap<double,double> GetInputPoints() const { return _input_points; }
     QMap<double,double> GetRecogLinePoints() const { return _recog_line_points; }
     double GetRecogLineAngleCoef() const { return _recog_line_angle_coef; }

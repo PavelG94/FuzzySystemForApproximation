@@ -49,6 +49,25 @@ void CntlBuilder::SetData(const QVector<double> &x_vals, const QVector<double> &
     _is_ready_to_build = true;
 }
 
+double CntlBuilder::LossFunc(double y, double y_cntl)
+{
+    const double delta = 0.5;
+    double y_abs = qAbs(y - y_cntl);
+    double loss_val = (y_abs <= delta)? 0.5*(y-y_cntl)*(y-y_cntl)
+                                      : delta*(y_abs - delta/2);
+    return loss_val;
+}
+
+double CntlBuilder::NegGradient(double y, double y_cntl)
+{
+    const double delta = 0.5;
+    double y_abs = qAbs(y - y_cntl);
+    double y_sign = (y - y_cntl < 0)? -1 : +1;
+    double neg_grad_val = (y_abs <= delta)? y-y_cntl
+                                          : delta * y_sign;
+    return neg_grad_val;
+}
+
 double CntlBuilder::CalcSumError()
 {
     double sum_error(0);
@@ -121,7 +140,7 @@ void CntlBuilder::RecalcErrors()
         points_it.next();
         double x = points_it.key(), y = points_it.value();
         double y_cntl = _cntl(x);
-        double error = (y - y_cntl)*(y - y_cntl)/2;
+        double error = LossFunc(y, y_cntl);
         _errors[x] = error;
         if (_max_error < error) _max_error = error;
     }
@@ -134,9 +153,10 @@ void CntlBuilder::RecogNextLine()
     while (errors_it.hasNext()) {
         errors_it.next();
         double x = errors_it.key();
-        double y = _input_points.value(x) - _cntl(x);   //_cntl(x) == 0, если контроллер на x не определён
+        double y = _input_points.value(x), y_cntl = _cntl(x);   //_cntl(x) == 0, если контроллер на x не определён
+        double neg_grad = NegGradient(y, y_cntl);
         double error = errors_it.value();
-        _hough.AddError(x,y,error);
+        _hough.AddError(x, neg_grad, error);
     }
 }
 
