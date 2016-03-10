@@ -61,7 +61,7 @@ private:
     const QString _INPUT_POINTS_LEGEND = "Вход";
     const QString _CNTL_OUTPUT_LEGEND = "Выход контроллера";
     const QString _RECOG_LINE_POINTS_LEGEND = "Точки, которые определили распознанную прямую";
-    const QString _LINE_POINTS_LEGEND = "Распознанная прямая";
+    const QString _LINE_POINTS_LEGEND = "Уточнённая МНК прямая";
     DrawInfo _input_points_draw_info, _cntl_output_draw_info;
     DrawInfo _recog_line_points_draw_info, _line_points_draw_info;
 

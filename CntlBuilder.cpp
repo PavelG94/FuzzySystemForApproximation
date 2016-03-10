@@ -75,6 +75,7 @@ bool CntlBuilder::BuildStep()
     if (_recog_line_points.size() < MIN_POINTS_FOR_LINE_DEF) return false; //Условие остановки обучения
 
     CalcClarifiedRecogLineParams(_recog_line_points);
+
     AddNewRule(_recog_line_points, _recog_line_angle_coef, _recog_line_shift);
     ++_steps_done;
     return true;
@@ -158,8 +159,9 @@ void CntlBuilder::CalcClarifiedRecogLineParams(const QMap<double, double> &recog
     while (it.hasNext()) {
         it.next();
         double x = it.key(), y = it.value();
+        double y_cntl = _cntl(x);   //y_cntl == 0, если на x контроллер не определён
         x_vals[curr_vec_id] = x;
-        y_vals[curr_vec_id] = y;
+        y_vals[curr_vec_id] = y - y_cntl;
         ++curr_vec_id;
     }
     double a = 0, b = 0;
