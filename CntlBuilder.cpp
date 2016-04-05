@@ -261,34 +261,28 @@ void CntlBuilder::FilterRecogLinePoints()
 
     QVector<DistCluster> dist_labels = KMeansByDist();
 
-    bool is_part_found = false;
+    int ret_start_pos = 0, ret_part_size = 0;
     int start_pos = 0, end_pos = 0, part_size = 0;
     for (int i = 0; i < dist_labels.size(); ++i) {
         if (dist_labels[i] == dcLONG) {
             end_pos = i;
             part_size = end_pos - start_pos + 1;
-            if (part_size >= MIN_POINTS_FOR_LINE_DEF) {
-                is_part_found = true;
-                break;
+            if (ret_part_size < part_size) {
+                ret_start_pos = start_pos;
+                ret_part_size = part_size;
             }
             start_pos = end_pos + 1;
         }
     }
-    if (is_part_found == false) {
-        end_pos = _recog_line_points_ptrs.size() - 1;
-        part_size = end_pos - start_pos + 1;
-        if (end_pos == 0) {
-            //все расстояния из кластера dcSHORT
-            is_part_found = true;
-        } else {
-            //остаётся единственный кандидат - отрезок от start_pos до конца
-            is_part_found = bool(part_size >= MIN_POINTS_FOR_LINE_DEF);
-        }
+    end_pos = _recog_line_points_ptrs.size() - 1;
+    part_size = end_pos - start_pos + 1;
+    if (ret_part_size < part_size) {
+        ret_start_pos = start_pos;
+        ret_part_size = part_size;
     }
-
-    if (is_part_found == true) {
-        //сохраняю только выделенную часть
-        _recog_line_points_ptrs = _recog_line_points_ptrs.mid(start_pos, part_size);
+    if (MIN_POINTS_FOR_LINE_DEF <= ret_part_size) {
+        //выбираю наибольшую по количеству точек подпоследовательность
+        _recog_line_points_ptrs = _recog_line_points_ptrs.mid(ret_start_pos, ret_part_size);
     }
     //иначе сохраняю все точки
 }
