@@ -1,7 +1,7 @@
 #ifndef CNTLBUILDER_H
 #define CNTLBUILDER_H
 
-#include <QMap>
+#include <QVector>
 
 #include "UnaryFunc.h"
 #include "HoughTransform.h"
@@ -12,16 +12,17 @@ class CntlBuilder
 public:
     const int MAX_LEARNING_STEPS = 100;
     const int MIN_POINTS_FOR_LINE_DEF = 2;
-    const double MAX_ERROR_EPS = 0.1;
 
     void SetData(UnaryFunc &f, double x_min, double x_max, double step);
     void SetData(const QVector<double> &x_vals, const QVector<double> &y_vals);
 
     double CalcSumError();
-    QMap<double,double> GetInputPoints() const { return _input_points; }
-    QMap<double,double> GetModifInputPoints() const { return _modif_input_points; }
+    void GetInputPointsX(QVector<double> &x_vals) const;
+    void GetInputPointsY(QVector<double> &y_vals) const;
+    void GetRestInputPointsX(QVector<double> &x_vals) const;
+    void GetRestInputPointsY(QVector<double> &y_vals) const;
 
-    QMap<double,double> GetRecogLinePoints() const { return _recog_line_points; }
+    void GetRecogLinePoints(QVector<double> &x_vals, QVector<double> &y_vals) const;
     double GetRecogLineAngleCoef() const { return _recog_line_angle_coef; }
     double GetRecogLineShift() const { return _recog_line_shift; }
     SugenoCntl& GetController() { return _cntl; }
@@ -30,21 +31,33 @@ public:
     void Build();
 
 private:
-    void InitErrorsVector(const QMap<double, double> &points);
-    void PrepareToLearning(double x_of_max_abs_y, double max_abs_y);
+    struct PointInfo
+    {
+        PointInfo(double x = 0, double y = 0, bool is_removed = false)
+            : x(x), y(y), is_removed(is_removed) { }
+        double x;
+        double y;
+        bool is_removed;
+    };
 
-    void RecalcErrors();
-    void RecogNextLine();
-    void CalcClarifiedRecogLineParams(const QMap<double,double> &recog_line_points);
-    void AddNewRule(const QMap<double,double> &recog_line_points, double recog_line_angle_coef, double recog_line_shift);
+    enum DistCluster { dcSHORT, dcLONG };
+    QVector<DistCluster> KMeansByDist();
+
+    void AscSortPointsByX(QVector<PointInfo> &points);
+    void PrepareToLearning(double x_of_max_abs_y, double max_abs_y);
+    bool RecogNextLine();
+    void PickPointsFromRecogLine();
+
+    void FilterRecogLinePoints();
+    void CalcClarifiedRecogLineParams();
+
+    void AddNewRule();
+    void RemoveUsedPoints();
 
 private:
-    QMap<double,double> _input_points;
-    QMap<double,double> _modif_input_points;
-    QMap<double,double> _errors;
-    QMap<double,double> _recog_line_points;
+    QVector<PointInfo> _input_points;
+    QVector<PointInfo*> _recog_line_points_ptrs;
     double _recog_line_angle_coef = 0, _recog_line_shift = 0;
-    double _max_error = -1;
     int _steps_done = 0;
     bool _is_ready_to_build = false;
 

@@ -3,7 +3,6 @@
 
 #include <QString>
 #include <QVector>
-#include <QMap>
 #include <QToolBar>
 #include <QMainWindow>
 
@@ -48,10 +47,10 @@ private:
     void InitPlotWidget(const QCPRange &x_range, const QCPRange &y_range);
     void InitMainWindow();
 
-    QMap<double,double> CalcLinePointsForDraw(double angle_coef, double line_shift);
-    QMap<double,double> CalcCntlPointsForDraw();
+    QVector<double> CalcLineValuesForDraw(const QVector<double> &x_vals, double angle_coef, double line_shift);
+    QVector<double> CalcCntlValuesForDraw(const QVector<double> &x_vals);
 
-    void AddGraphOnPlot(const QMap<double,double> &points, const DrawInfo &draw_info);
+    void AddGraphOnPlot(const QVector<double> &x_vals, const QVector<double> &y_vals, const DrawInfo &draw_info);
     void DrawStepInfo();
     void DrawResultInfo();
     void RedrawPlot();
@@ -59,11 +58,11 @@ private:
 
 private:
     const QString _INPUT_POINTS_LEGEND = "Вход";
-    const QString _MODIF_INPUT_POINTS_LEGEND = "Изменённый вход";
+    //const QString _MODIF_INPUT_POINTS_LEGEND = "Изменённый вход";
     const QString _CNTL_OUTPUT_LEGEND = "Выход контроллера";
     const QString _RECOG_LINE_POINTS_LEGEND = "Точки, которые определили распознанную прямую";
     const QString _LINE_POINTS_LEGEND = "Распознанная прямая";
-    DrawInfo _input_points_draw_info, _modif_input_points_draw_info, _cntl_output_draw_info;
+    DrawInfo _input_points_draw_info, _cntl_output_draw_info;
     DrawInfo _recog_line_points_draw_info, _line_points_draw_info;
 
     CntlBuilder *_builder = nullptr;

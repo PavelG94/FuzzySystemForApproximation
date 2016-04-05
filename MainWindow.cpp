@@ -6,7 +6,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     _input_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::blue, _INPUT_POINTS_LEGEND, QCPScatterStyle::ssCircle);
-    _modif_input_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::blue, _MODIF_INPUT_POINTS_LEGEND, QCPScatterStyle::ssCircle);
+    //_modif_input_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::blue, _MODIF_INPUT_POINTS_LEGEND, QCPScatterStyle::ssCircle);
     _cntl_output_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::yellow, _CNTL_OUTPUT_LEGEND, QCPScatterStyle::ssCircle);
     _recog_line_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::red, _RECOG_LINE_POINTS_LEGEND, QCPScatterStyle::ssCross);
     _line_points_draw_info = DrawInfo(DrawInfo::tLINE, Qt::black, _LINE_POINTS_LEGEND);
@@ -39,33 +39,26 @@ void MainWindow::ResultClickedSlot()
     DrawResultInfo();
 }
 
-QMap<double,double> MainWindow::CalcLinePointsForDraw(double angle_coef, double line_shift)
+QVector<double> MainWindow::CalcLineValuesForDraw(const QVector<double> &x_vals, double angle_coef, double line_shift)
 {
-    QMap<double,double> line_points;
-    QMap<double,double> input_points = _builder->GetInputPoints();
-    QMapIterator<double,double> it(input_points);
-    while (it.hasNext()) {
-        it.next();
-        double x = it.key();
-        double y = angle_coef * x + line_shift;
-        line_points.insert(x,y);
+    QVector<double> line_vals(x_vals.size());
+    for (int i = 0; i < x_vals.size(); ++i) {
+        double y = angle_coef * x_vals[i] + line_shift;
+        line_vals[i] = y;
     }
-    return line_points;
+    return line_vals;
 }
 
-QMap<double, double> MainWindow::CalcCntlPointsForDraw()
+QVector<double> MainWindow::CalcCntlValuesForDraw(const QVector<double> &x_vals)
 {
     SugenoCntl &cntl = _builder->GetController();
-    QMap<double,double> input_points = _builder->GetInputPoints();
-    QMap<double,double> cntl_points;
-    QMapIterator<double,double> it(input_points);
-    while (it.hasNext()) {
-        it.next();
-        double x = it.key();
+    QVector<double> y_cntl_vals(x_vals.size());
+    for (int i = 0; i < y_cntl_vals.size(); ++i) {
+        double x = x_vals[i];
         double y_cntl = cntl(x);
-        cntl_points.insert(x,y_cntl);
+        y_cntl_vals[i] = y_cntl;
     }
-    return cntl_points;
+    return y_cntl_vals;
 }
 
 void MainWindow::RedrawPlot()
@@ -91,8 +84,10 @@ void MainWindow::SetBuilder(CntlBuilder *builder)
 void MainWindow::DrawInputPoints()
 {
     assert(_builder != nullptr);
-    QMap<double, double> input_points = _builder->GetInputPoints();
-    AddGraphOnPlot(input_points, _input_points_draw_info);
+    QVector<double> input_x_vals, input_y_vals;
+    _builder->GetInputPointsX(input_x_vals);
+    _builder->GetInputPointsY(input_y_vals);
+    AddGraphOnPlot(input_x_vals, input_y_vals, _input_points_draw_info);
     RedrawPlot();
 }
 
@@ -141,16 +136,9 @@ void MainWindow::InitMainWindow()
     this->setStatusBar(_status_bar);
 }
 
-void MainWindow::AddGraphOnPlot(const QMap<double,double> &points, const DrawInfo &draw_info)
+void MainWindow::AddGraphOnPlot(const QVector<double> &x_vals, const QVector<double> &y_vals, const DrawInfo &draw_info)
 {
     QCPGraph *graph = _plot_widget->addGraph();
-    QVector<double> x_vals(points.size()), y_vals(points.size());
-    QMapIterator<double,double> it(points);
-    for(int i = 0; i < points.size(); ++i) {
-        it.next();
-        x_vals[i] = it.key();
-        y_vals[i] = it.value();
-    }
     graph->setData(x_vals, y_vals);
     QCPGraph::LineStyle line_style;
     if (draw_info.type == DrawInfo::tLINE) {
@@ -176,24 +164,28 @@ void MainWindow::AddGraphOnPlot(const QMap<double,double> &points, const DrawInf
 
 void MainWindow::DrawStepInfo()
 {
+    QVector<double> rest_x_vals, rest_y_vals;
+    _builder->GetRestInputPointsX(rest_x_vals);
+    _builder->GetRestInputPointsY(rest_y_vals);
 
-    QMap<double,double> modif_input_points = _builder->GetModifInputPoints();
+    QVector<double> input_x_vals;
+    _builder->GetInputPointsX(input_x_vals);
 
-    QMap<double,double> cntl_points = CalcCntlPointsForDraw();
-
+    QVector<double> cntl_y_vals = CalcCntlValuesForDraw(input_x_vals);
     double angle_coef = _builder->GetRecogLineAngleCoef(), line_shift = _builder->GetRecogLineShift();
 
-    //распознанная прямая
-    QMap<double,double> line_points = CalcLinePointsForDraw(angle_coef, line_shift);
-
     //точки, по которым строился нечёткий терм для последнего добавленного правила
-    QMap<double,double> recog_line_points = _builder->GetRecogLinePoints();
+    QVector<double> recog_line_x_vals, recog_line_y_vals;
+    _builder->GetRecogLinePoints(recog_line_x_vals, recog_line_y_vals);
+
+    //распознанная прямая с параметрами, уточнёнными с помощью МНК
+    QVector<double> line_y_vals = CalcLineValuesForDraw(input_x_vals, angle_coef, line_shift);
 
     ClearPlot();
-    AddGraphOnPlot(modif_input_points, _modif_input_points_draw_info);
-    AddGraphOnPlot(recog_line_points, _recog_line_points_draw_info);
-    AddGraphOnPlot(cntl_points, _cntl_output_draw_info);
-    AddGraphOnPlot(line_points, _line_points_draw_info);
+    AddGraphOnPlot(rest_x_vals, rest_y_vals, _input_points_draw_info);
+    AddGraphOnPlot(input_x_vals, cntl_y_vals, _cntl_output_draw_info);
+    AddGraphOnPlot(recog_line_x_vals, recog_line_y_vals, _recog_line_points_draw_info);
+    AddGraphOnPlot(input_x_vals, line_y_vals, _line_points_draw_info);
     RedrawPlot();
 
     QString line_info_msg = QString("распознанная прямая: %1*x + %2").arg(angle_coef).arg(line_shift);
@@ -204,12 +196,14 @@ void MainWindow::DrawStepInfo()
 
 void MainWindow::DrawResultInfo()
 {
-    QMap<double,double> input_points = _builder->GetInputPoints();
-    QMap<double,double> cntl_points = CalcCntlPointsForDraw();
+    QVector<double> input_x_vals, input_y_vals;
+    _builder->GetInputPointsX(input_x_vals);
+    _builder->GetInputPointsY(input_y_vals);
+    QVector<double> cntl_y_vals = CalcCntlValuesForDraw(input_x_vals);
 
     ClearPlot();
-    AddGraphOnPlot(input_points, _input_points_draw_info);
-    AddGraphOnPlot(cntl_points, _cntl_output_draw_info);
+    AddGraphOnPlot(input_x_vals, input_y_vals, _input_points_draw_info);
+    AddGraphOnPlot(input_x_vals, cntl_y_vals, _cntl_output_draw_info);
     RedrawPlot();
 
     double sum_error = _builder->CalcSumError();
