@@ -169,11 +169,20 @@ QVector<CntlBuilder::DistCluster> CntlBuilder::KMeansByDist()
         double dist = qSqrt( (x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) );
         dist_vals[i] = dist;
     }
-
-    QVector<DistCluster> prev_dist_labels(dist_vals.size(), dcLONG);
-    QVector<DistCluster> curr_dist_labels(dist_vals.size(), dcLONG);
+    //Начальное предположение: имею только один кластер, т.е. все расстояния dcSHORT
+    QVector<DistCluster> prev_dist_labels(dist_vals.size(), dcSHORT);
     auto minmax_it_pair = std::minmax_element(dist_vals.begin(), dist_vals.end());
     double short_mid = *(minmax_it_pair.first), long_mid = *(minmax_it_pair.second);
+
+    //Проверка на случай, когда все расстояния между соседними точками малы
+    double dist_between_mid = qAbs( short_mid - long_mid );
+    const double eps = 0.1;    //! магическое число
+    if (dist_between_mid < eps) {
+        //есть только один кластер
+        return prev_dist_labels;
+    }
+
+    QVector<DistCluster> curr_dist_labels(dist_vals.size(), dcSHORT);
     int short_size = 0, long_size = 0;
     while (true) {
         short_size = 0; long_size = 0;
