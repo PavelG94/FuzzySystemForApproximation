@@ -28,7 +28,7 @@ void HoughTransform::Init(double arg_of_max_abs, double value_of_max_abs, double
     Clear();
 }
 
-void HoughTransform::AddPoint(double x, double y)
+void HoughTransform::AddPoint(double x, double y, double weight)
 {
     assert(_matrix != nullptr);
     for (int angle_in_degr = 0; angle_in_degr < _ROWS_AS_ANGLE_VALUES; angle_in_degr++) {
@@ -37,22 +37,7 @@ void HoughTransform::AddPoint(double x, double y)
         if (0 <= radius && radius <= _max_radius) {
             int row = angle_in_degr;
             int col = qRound(radius / _radius_step);
-            _matrix[row][col]++;
-        }
-    }
-    _is_result_found = false;
-}
-
-void HoughTransform::AddError(double x, double y, double error)
-{
-    assert(_matrix != nullptr);
-    for (int angle_in_degr = 0; angle_in_degr < _ROWS_AS_ANGLE_VALUES; angle_in_degr++) {
-        double angle_in_rad = qDegreesToRadians(double(angle_in_degr));
-        double radius = x*qCos(angle_in_rad) + y*qSin(angle_in_rad);
-        if (0 <= radius && radius <= _max_radius) {
-            int row = angle_in_degr;
-            int col = qRound(radius / _radius_step);
-            _matrix[row][col] += error;
+            _matrix[row][col] += weight;
         }
     }
     _is_result_found = false;
@@ -70,32 +55,22 @@ double HoughTransform::GetNormalRadius()
     return _res_radius;
 }
 
-QMap<double, double> HoughTransform::GetPointsFromRecogLine(const QMap<double, double> &in_points)
+bool HoughTransform::IsPointFromRecogLine(double x, double y)
 {
-    assert(_matrix != nullptr);
     if (_is_result_found == false) FindResult();
 
-    QMap<double,double> points_from_recog_line;
-    QMapIterator<double,double> it(in_points);
-    while(it.hasNext()) {
-        it.next();
-        double x = it.key(), y = it.value();
-        for (int angle_in_degr = 0; angle_in_degr < _ROWS_AS_ANGLE_VALUES; angle_in_degr++) {
-            double angle_in_rad = qDegreesToRadians(double(angle_in_degr));
-            double radius = x*qCos(angle_in_rad) + y*qSin(angle_in_rad);
-            if (0 <= radius && radius <= _max_radius) {
-                int row = angle_in_degr;
-                int col = qRound(radius / _radius_step);
-                if (row == _row_of_max && col == _col_of_max) {
-                    //вставка без повторов
-                    points_from_recog_line.insert(x,y);
-                    //поиск значений только для одной ячейки таблицы
-                   break;
-               }
-            }
-       }
+    for (int angle_in_degr = 0; angle_in_degr < _ROWS_AS_ANGLE_VALUES; angle_in_degr++) {
+        double angle_in_rad = qDegreesToRadians(double(angle_in_degr));
+        double radius = x*qCos(angle_in_rad) + y*qSin(angle_in_rad);
+        if (0 <= radius && radius <= _max_radius) {
+            int row = angle_in_degr;
+            int col = qRound(radius / _radius_step);
+            if (row == _row_of_max && col == _col_of_max) {
+                return true;
+           }
+        }
     }
-    return points_from_recog_line;
+    return false;
 }
 
 double HoughTransform::GetLineAngleCoef()

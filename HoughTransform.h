@@ -1,8 +1,6 @@
 #ifndef HOUGHTRANSFORM_H
 #define HOUGHTRANSFORM_H
 
-#include <QMap>
-
 class HoughTransform
 {
 public:
@@ -15,13 +13,12 @@ public:
     double GetMaxRadius() const { return _max_radius; }
     double GetRadiusStep() const { return _radius_step; }
 
-    void AddPoint(double x, double y);
-    void AddError(double x, double y, double error);
+    void AddPoint(double x, double y, double weight = 1);
 
     double GetNormalAngleInDegr();
     double GetNormalRadius();
 
-    QMap<double,double> GetPointsFromRecogLine(const QMap<double,double> &in_points);
+    bool IsPointFromRecogLine(double x, double y);
     double GetLineAngleCoef();
     double GetLineShift();
 
