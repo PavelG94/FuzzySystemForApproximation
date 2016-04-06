@@ -10,6 +10,8 @@
 class CntlBuilder
 {
 public:
+    enum DistCluster { dcSHORT, dcLONG };
+
     const int MAX_LEARNING_STEPS = 100;
     const int MIN_POINTS_FOR_LINE_DEF = 2;
 
@@ -30,7 +32,7 @@ public:
     bool BuildStep(); //Возвращает true, если было добавлено новое правило
     void Build();
 
-private:
+protected:
     struct PointInfo
     {
         PointInfo(double x = 0, double y = 0, bool is_removed = false)
@@ -39,23 +41,22 @@ private:
         double y;
         bool is_removed;
     };
-
-    enum DistCluster { dcSHORT, dcLONG };
     QVector<DistCluster> KMeansByDist();
 
     void AscSortPointsByX(QVector<PointInfo> &points);
     void PrepareToLearning(double x_of_max_abs_y, double max_abs_y);
-    bool RecogNextLine();
+    void RecogNextLine();
     void PickPointsFromRecogLine();
 
     void FilterRecogLinePoints();
-    void CalcClarifiedRecogLineParams();
+    void ClarifyRecogLineParamsViaMLS();
 
     void AddNewRule();
-    void RemoveUsedPoints();
+    void MarkPointsFromRecogLineAsRemoved();
 
-private:
+protected:
     QVector<PointInfo> _input_points;
+    int _not_removed_points_cnt = 0;
     QVector<PointInfo*> _recog_line_points_ptrs;
     double _recog_line_angle_coef = 0, _recog_line_shift = 0;
     int _steps_done = 0;

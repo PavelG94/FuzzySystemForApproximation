@@ -28,7 +28,6 @@ void CntlBuilder::SetData(UnaryFunc &f, double x_min, double x_max, double step)
     }
 
     PrepareToLearning(x_of_max_abs, max_abs_y);
-    _is_ready_to_build = true;
 }
 
 void CntlBuilder::SetData(const QVector<double> &x_vals, const QVector<double> &y_vals)
@@ -50,7 +49,6 @@ void CntlBuilder::SetData(const QVector<double> &x_vals, const QVector<double> &
     }
 
     PrepareToLearning(x_of_max_abs, max_abs_y);
-    _is_ready_to_build = true;
 }
 
 double CntlBuilder::CalcSumError()
@@ -116,34 +114,32 @@ bool CntlBuilder::BuildStep()
 {
     if (_is_ready_to_build == false) return false;
 
+    if (_not_removed_points_cnt < MIN_POINTS_FOR_LINE_DEF) {
+        qDebug() << "It remains too few points!";
+        return false; //Условие остановки обучения
+    }
+
     if (MAX_LEARNING_STEPS <= _steps_done) {
         qDebug() << "Max learning steps achieved!";
         return false; //Условие остановки обучения
     }
 
-    bool is_recog_succ = RecogNextLine();
-    if (is_recog_succ == false) {
-        qDebug() << "It remains too few points!";
-        return false; //Условие остановки обучения
-    }
+    RecogNextLine();
 
     PickPointsFromRecogLine();
 
-    if (_recog_line_points_ptrs.size() < MIN_POINTS_FOR_LINE_DEF) {
-        qDebug() << "Not enough points for line definition!";
-        return false; //Условие остановки обучения
-    }
-
-    //Оставляю первую подходящую подпоследовательность точек, расстояния между которыми из кластера dcSHORT
     FilterRecogLinePoints();
 
-    //Уточнение с помощью МНК
-    CalcClarifiedRecogLineParams();
+    if (_recog_line_points_ptrs.size() <= MIN_POINTS_FOR_LINE_DEF) {
+        MarkPointsFromRecogLineAsRemoved();
+        return BuildStep(); //Рекурсивный вызов
+    }
+
+    ClarifyRecogLineParamsViaMLS();
 
     AddNewRule();
 
-    //Удаление точек, по которым строился нечёткий терм
-    RemoveUsedPoints();
+    MarkPointsFromRecogLineAsRemoved();
 
     ++_steps_done;
     qDebug() << "Step #" << _steps_done << "done";
@@ -161,6 +157,8 @@ void CntlBuilder::Build()
 
 QVector<CntlBuilder::DistCluster> CntlBuilder::KMeansByDist()
 {
+    assert(MIN_POINTS_FOR_LINE_DEF <= _recog_line_points_ptrs.size());
+
     //исходный контейнер точек отсортирован => отсортирован контейнер с указателями
     QVector<double> dist_vals(_recog_line_points_ptrs.size() - 1);
     for (int i = 0; i < dist_vals.size(); ++i) {
@@ -169,20 +167,37 @@ QVector<CntlBuilder::DistCluster> CntlBuilder::KMeansByDist()
         double dist = qSqrt( (x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) );
         dist_vals[i] = dist;
     }
-    //Начальное предположение: имею только один кластер, т.е. все расстояния dcSHORT
-    QVector<DistCluster> prev_dist_labels(dist_vals.size(), dcSHORT);
-    auto minmax_it_pair = std::minmax_element(dist_vals.begin(), dist_vals.end());
-    double short_mid = *(minmax_it_pair.first), long_mid = *(minmax_it_pair.second);
 
     //Проверка на случай, когда все расстояния между соседними точками малы
-    double dist_between_mid = qAbs( short_mid - long_mid );
-    const double eps = 0.1;    //! магическое число
-    if (dist_between_mid < eps) {
+    QVector<DistCluster> prev_dist_labels(dist_vals.size(), dcSHORT);
+    auto minmax_it = std::minmax_element(dist_vals.begin(), dist_vals.end());
+    double min_dist = *(minmax_it.first), max_dist = *(minmax_it.second);
+    double minmax_dist = qAbs( max_dist - min_dist );
+    const double dist_eps = 0.1;    //! магическое число
+    if (minmax_dist < dist_eps) {
         //есть только один кластер
         return prev_dist_labels;
     }
 
+    //Определение начальных центроидов
+    double max_dist1 = max_dist, max_dist2 = min_dist;
+    while (true) {
+        double prev_max_dist2 = max_dist2;
+        for (int i = 0; i < dist_vals.size(); ++i) {
+            if (dist_vals[i] < max_dist1 && max_dist2 < dist_vals[i]) {
+                max_dist2 = dist_vals[i];
+            }
+        }
+        if (qAbs( max_dist2 - prev_max_dist2 ) < dist_eps) break;
+        if (qAbs( max_dist2 - min_dist ) < dist_eps) break;
+        max_dist1 = max_dist2;
+    }
+    double short_mid = min_dist, long_mid = max_dist1;
+
+    //Итерации алгоритма
     QVector<DistCluster> curr_dist_labels(dist_vals.size(), dcSHORT);
+//    double short_mid = 0,
+//           long_mid = max_dist;
     int short_size = 0, long_size = 0;
     while (true) {
         short_size = 0; long_size = 0;
@@ -227,24 +242,25 @@ QVector<CntlBuilder::DistCluster> CntlBuilder::KMeansByDist()
 void CntlBuilder::PrepareToLearning(double x_of_max_abs_y, double max_abs_y)
 {
     assert(0 <= max_abs_y);
-    _cntl.Clear();
+
     _hough.Init(x_of_max_abs_y, max_abs_y);
     AscSortPointsByX(_input_points);
+    _not_removed_points_cnt = _input_points.size();
+    _cntl.Clear();
     _steps_done = 0;
+
+    _is_ready_to_build = true;
 }
 
-bool CntlBuilder::RecogNextLine()
+void CntlBuilder::RecogNextLine()
 {
     _hough.Clear();
-    int not_removed_points_cnt = 0;
     for (int i = 0; i < _input_points.size(); ++i) {
         if (_input_points[i].is_removed == false) {
             double x = _input_points[i].x, y = _input_points[i].y;
             _hough.AddPoint(x,y);
-            ++not_removed_points_cnt;
         }
     }
-    return MIN_POINTS_FOR_LINE_DEF <= not_removed_points_cnt;
 }
 
 void CntlBuilder::PickPointsFromRecogLine()
@@ -266,11 +282,11 @@ void CntlBuilder::AscSortPointsByX(QVector<PointInfo> &points)
 
 void CntlBuilder::FilterRecogLinePoints()
 {
-    if (_recog_line_points_ptrs.isEmpty()) return;
+    if (_recog_line_points_ptrs.size() < MIN_POINTS_FOR_LINE_DEF) return;
 
     QVector<DistCluster> dist_labels = KMeansByDist();
 
-    int ret_start_pos = 0, ret_part_size = 0;
+    int ret_start_pos = 0, ret_part_size = 1;
     int start_pos = 0, end_pos = 0, part_size = 0;
     for (int i = 0; i < dist_labels.size(); ++i) {
         if (dist_labels[i] == dcLONG) {
@@ -289,14 +305,11 @@ void CntlBuilder::FilterRecogLinePoints()
         ret_start_pos = start_pos;
         ret_part_size = part_size;
     }
-    if (MIN_POINTS_FOR_LINE_DEF <= ret_part_size) {
-        //выбираю наибольшую по количеству точек подпоследовательность
-        _recog_line_points_ptrs = _recog_line_points_ptrs.mid(ret_start_pos, ret_part_size);
-    }
-    //иначе сохраняю все точки
+
+    _recog_line_points_ptrs = _recog_line_points_ptrs.mid(ret_start_pos, ret_part_size);
 }
 
-void CntlBuilder::CalcClarifiedRecogLineParams()
+void CntlBuilder::ClarifyRecogLineParamsViaMLS()
 {
     QVector<double> x_vals(_recog_line_points_ptrs.size()), y_vals(_recog_line_points_ptrs.size());
     for (int i = 0; i < _recog_line_points_ptrs.size(); ++i) {
@@ -323,7 +336,7 @@ void CntlBuilder::AddNewRule()
     _cntl.AddRule(m_func, conseq_func);
 }
 
-void CntlBuilder::RemoveUsedPoints()
+void CntlBuilder::MarkPointsFromRecogLineAsRemoved()
 {
     int removed_points_cnt = 0;
     for (PointInfo &point: _input_points) {
@@ -335,4 +348,5 @@ void CntlBuilder::RemoveUsedPoints()
         }
     }
     assert(removed_points_cnt == _recog_line_points_ptrs.size());
+    _not_removed_points_cnt -= removed_points_cnt;
 }
