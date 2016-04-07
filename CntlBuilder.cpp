@@ -171,8 +171,8 @@ QVector<CntlBuilder::DistCluster> CntlBuilder::KMeansByDist()
     //Проверка на случай, когда все расстояния между соседними точками малы
     QVector<DistCluster> prev_dist_labels(dist_vals.size(), dcSHORT);
     auto minmax_it = std::minmax_element(dist_vals.begin(), dist_vals.end());
-    double min_dist = *(minmax_it.first), max_dist = *(minmax_it.second);
-    double minmax_dist = qAbs( max_dist - min_dist );
+    double min_dist = *(minmax_it.first), first_max_dist = *(minmax_it.second);
+    double minmax_dist = qAbs( first_max_dist - min_dist );
     const double dist_eps = 0.1;    //! магическое число
     if (minmax_dist < dist_eps) {
         //есть только один кластер
@@ -180,24 +180,18 @@ QVector<CntlBuilder::DistCluster> CntlBuilder::KMeansByDist()
     }
 
     //Определение начальных центроидов
-    double max_dist1 = max_dist, max_dist2 = min_dist;
-    while (true) {
-        double prev_max_dist2 = max_dist2;
-        for (int i = 0; i < dist_vals.size(); ++i) {
-            if (dist_vals[i] < max_dist1 && max_dist2 < dist_vals[i]) {
-                max_dist2 = dist_vals[i];
-            }
+    double second_max_dist = min_dist;
+    for (int i = 0; i < dist_vals.size(); ++i) {
+        if (dist_vals[i] < first_max_dist  && second_max_dist < dist_vals[i]) {
+            second_max_dist = dist_vals[i];
         }
-        if (qAbs( max_dist2 - prev_max_dist2 ) < dist_eps) break;
-        if (qAbs( max_dist2 - min_dist ) < dist_eps) break;
-        max_dist1 = max_dist2;
     }
-    double short_mid = min_dist, long_mid = max_dist1;
+    double short_mid = min_dist, long_mid = qAbs( second_max_dist - min_dist) < dist_eps
+            ? first_max_dist
+            : second_max_dist;
 
     //Итерации алгоритма
     QVector<DistCluster> curr_dist_labels(dist_vals.size(), dcSHORT);
-//    double short_mid = 0,
-//           long_mid = max_dist;
     int short_size = 0, long_size = 0;
     while (true) {
         short_size = 0; long_size = 0;
