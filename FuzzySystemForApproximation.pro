@@ -12,18 +12,15 @@ TARGET = FuzzySystemForApproximation
 TEMPLATE = app
 
 CONFIG += c++11
-LIBS += -lgtest -lpthread
+LIBS += -lpthread
 
 SOURCES += \
     MLS.cpp \
     qcustomplot.cpp \
     Main.cpp \
-    TestsOfMLS.cpp \
     UnaryFunc.cpp \
     HoughTransform.cpp \
-    TestsOfHoughTransform.cpp \
     SugenoCntl.cpp \
-    TestsOfSugenoCntl.cpp \
     MainWindow.cpp \
     CntlBuilder.cpp
 

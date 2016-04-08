@@ -1,11 +1,10 @@
+#include <random>
+
 #include <QApplication>
 #include <QtMath>
-#include <gtest/gtest.h>
 
 #include "CntlBuilder.h"
 #include "MainWindow.h"
-
-#include <random>
 
 void GenInputValues(QVector<double> &x_vals, QVector<double> &y_vals,
                     UnaryFunc f, double x_min, double x_max, double step, bool with_noise)
@@ -58,12 +57,6 @@ int RunProg(int argc, char *argv[])
     win.show();
 
     return app.exec();
-}
-
-int RunTests(int argc, char *argv[])
-{
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
 }
 
 int main(int argc, char *argv[])
