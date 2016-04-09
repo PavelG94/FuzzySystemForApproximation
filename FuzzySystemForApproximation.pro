@@ -12,6 +12,7 @@ TARGET = FuzzySystemForApproximation
 TEMPLATE = app
 
 CONFIG += c++11
+CONFIG += warn_on   #выдавать все возможные предупреждения
 LIBS += -lpthread
 
 SOURCES += \

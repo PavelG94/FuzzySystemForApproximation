@@ -140,11 +140,9 @@ void MainWindow::AddGraphOnPlot(const QVector<double> &x_vals, const QVector<dou
 {
     QCPGraph *graph = _plot_widget->addGraph();
     graph->setData(x_vals, y_vals);
-    QCPGraph::LineStyle line_style;
+    QCPGraph::LineStyle line_style = QCPGraph::lsNone;
     if (draw_info.type == DrawInfo::tLINE) {
         line_style = QCPGraph::lsLine;
-    } else if (draw_info.type == DrawInfo::tSCATTER) {
-        line_style = QCPGraph::lsNone;
     }
     graph->setLineStyle(line_style);
     if (line_style == QCPGraph::lsNone) {
