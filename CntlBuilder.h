@@ -12,7 +12,6 @@ class CntlBuilder
 public:
     enum DistCluster { dcSHORT, dcLONG };
 
-    const int MAX_LEARNING_STEPS = 100;
     const int MIN_POINTS_FOR_LINE_DEF = 2;
 
     void SetData(UnaryFunc &f, double x_min, double x_max, double step);
@@ -29,8 +28,9 @@ public:
     double GetRecogLineShift() const { return _recog_line_shift; }
     SugenoCntl& GetController() { return _cntl; }
 
-    bool BuildStep(); //Возвращает true, если было добавлено новое правило
-    void Build();
+    bool BuildNextMemFunc();
+    void BuildCntl();
+    void BuildAll();
 
 protected:
     struct PointInfo
@@ -49,9 +49,8 @@ protected:
     void PickPointsFromRecogLine();
 
     void FilterRecogLinePoints();
-    void ClarifyRecogLineParamsViaMLS();
+    void BuildMemFunc();
 
-    void AddNewRule();
     void MarkPointsFromRecogLineAsRemoved();
 
 protected:
@@ -61,6 +60,8 @@ protected:
     double _recog_line_angle_coef = 0, _recog_line_shift = 0;
     int _steps_done = 0;
     bool _is_ready_to_build = false;
+
+    QVector<UnaryFunc> _mem_funcs;
 
     HoughTransform _hough;
     SugenoCntl _cntl;

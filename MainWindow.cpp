@@ -8,7 +8,7 @@ MainWindow::MainWindow(QWidget *parent)
     _input_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::blue, _INPUT_POINTS_LEGEND, QCPScatterStyle::ssCircle);
     //_modif_input_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::blue, _MODIF_INPUT_POINTS_LEGEND, QCPScatterStyle::ssCircle);
     _cntl_output_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::yellow, _CNTL_OUTPUT_LEGEND, QCPScatterStyle::ssCircle);
-    _recog_line_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::red, _RECOG_LINE_POINTS_LEGEND, QCPScatterStyle::ssCross);
+    _recog_line_points_draw_info = DrawInfo(DrawInfo::tSCATTER, Qt::red, _MEM_FUNCS_POINTS_LEGEND, QCPScatterStyle::ssCross);
     _line_points_draw_info = DrawInfo(DrawInfo::tLINE, Qt::black, _LINE_POINTS_LEGEND);
 
     InitMainWindow();
@@ -24,10 +24,11 @@ MainWindow::~MainWindow()
 void MainWindow::StepClickedSlot()
 {
     assert(_builder != nullptr);
-    bool is_step_done = _builder->BuildStep();
+    bool is_step_done = _builder->BuildNextMemFunc();
     if (is_step_done) {
         DrawStepInfo();
     } else {
+        _builder->BuildCntl();
         DrawResultInfo();
     }
 }
@@ -35,7 +36,7 @@ void MainWindow::StepClickedSlot()
 void MainWindow::ResultClickedSlot()
 {
     assert(_builder != nullptr);
-    _builder->Build();
+    _builder->BuildAll();
     DrawResultInfo();
 }
 
@@ -166,30 +167,24 @@ void MainWindow::DrawStepInfo()
     _builder->GetRestInputPointsX(rest_x_vals);
     _builder->GetRestInputPointsY(rest_y_vals);
 
-    QVector<double> input_x_vals;
-    _builder->GetInputPointsX(input_x_vals);
-
-    QVector<double> cntl_y_vals = CalcCntlValuesForDraw(input_x_vals);
-    double angle_coef = _builder->GetRecogLineAngleCoef(), line_shift = _builder->GetRecogLineShift();
-
     //точки, по которым строился нечёткий терм для последнего добавленного правила
     QVector<double> recog_line_x_vals, recog_line_y_vals;
     _builder->GetRecogLinePoints(recog_line_x_vals, recog_line_y_vals);
 
-    //распознанная прямая с параметрами, уточнёнными с помощью МНК
+    //точки распознанной прямой
+    QVector<double> input_x_vals;
+    _builder->GetInputPointsX(input_x_vals);
+    double angle_coef = _builder->GetRecogLineAngleCoef(), line_shift = _builder->GetRecogLineShift();
     QVector<double> line_y_vals = CalcLineValuesForDraw(input_x_vals, angle_coef, line_shift);
 
     ClearPlot();
     AddGraphOnPlot(rest_x_vals, rest_y_vals, _input_points_draw_info);
-    AddGraphOnPlot(input_x_vals, cntl_y_vals, _cntl_output_draw_info);
     AddGraphOnPlot(recog_line_x_vals, recog_line_y_vals, _recog_line_points_draw_info);
     AddGraphOnPlot(input_x_vals, line_y_vals, _line_points_draw_info);
     RedrawPlot();
 
     QString line_info_msg = QString("распознанная прямая: %1*x + %2").arg(angle_coef).arg(line_shift);
-    double sum_error = _builder->CalcSumError();
-    QString sum_error_msg = QString("суммарная ошибка: %1").arg(sum_error);
-    _status_bar->showMessage(line_info_msg + " | " + sum_error_msg);
+    _status_bar->showMessage(line_info_msg);
 }
 
 void MainWindow::DrawResultInfo()

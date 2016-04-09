@@ -24,7 +24,6 @@ public:
 
     void Clear();
 
-    //Для тестов
     int ColumnsCnt() const { return _columns_as_radius_values; }
 
 private:

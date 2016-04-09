@@ -4,7 +4,8 @@
 #include <QDebug>
 #include <QtMath>
 
-#include "MLS.h"
+#include <armadillo>
+
 #include "CntlBuilder.h"
 
 void CntlBuilder::SetData(UnaryFunc &f, double x_min, double x_max, double step)
@@ -110,17 +111,12 @@ void CntlBuilder::GetRecogLinePoints(QVector<double> &x_vals, QVector<double> &y
     }
 }
 
-bool CntlBuilder::BuildStep()
+bool CntlBuilder::BuildNextMemFunc()
 {
     if (_is_ready_to_build == false) return false;
 
     if (_not_removed_points_cnt < MIN_POINTS_FOR_LINE_DEF) {
         qDebug() << "It remains too few points!";
-        return false; //Условие остановки обучения
-    }
-
-    if (MAX_LEARNING_STEPS <= _steps_done) {
-        qDebug() << "Max learning steps achieved!";
         return false; //Условие остановки обучения
     }
 
@@ -132,12 +128,10 @@ bool CntlBuilder::BuildStep()
 
     if (_recog_line_points_ptrs.size() <= MIN_POINTS_FOR_LINE_DEF) {
         MarkPointsFromRecogLineAsRemoved();
-        return BuildStep(); //Рекурсивный вызов
+        return BuildNextMemFunc(); //Рекурсивный вызов
     }
 
-    ClarifyRecogLineParamsViaMLS();
-
-    AddNewRule();
+    BuildMemFunc();
 
     MarkPointsFromRecogLineAsRemoved();
 
@@ -147,12 +141,64 @@ bool CntlBuilder::BuildStep()
     return true;
 }
 
-void CntlBuilder::Build()
+void CntlBuilder::BuildCntl()
+{
+    //Построить контроллер на основе текущего содержимого _mem_funcs
+
+    if (_mem_funcs.size() == 0) return;
+
+    const int n_rows_in_A = _input_points.size(),
+              n_cols_in_A = 2 * _mem_funcs.size();
+    arma::mat A(n_rows_in_A, n_cols_in_A);
+    arma::vec B(n_rows_in_A);
+
+    //Заполнение A
+    for (int row = 0; row < A.n_rows; ++row) {
+        int point_id = row;
+        double x = _input_points[point_id].x;
+        double mem_funcs_sum = 0;
+        for (int i = 0; i < _mem_funcs.size(); ++i) {
+            mem_funcs_sum += _mem_funcs[i](x);
+        }
+        for (int col = 0; col < A.n_cols; ++col) {
+            int mem_func_id = col / 2;
+            double value = _mem_funcs[mem_func_id](x) / mem_funcs_sum;
+            value = (col % 2 == 0)? value * x: value;
+            A(row,col) = value;
+        }
+    }
+
+    //Заполнение B
+    for (int row = 0; row < B.n_rows; ++row) {
+        int point_id = row;
+        B(row) = _input_points[point_id].y;
+    }
+
+    //Решение системы уравнений
+    arma::vec X = solve(A,B);
+
+    //Формирование следствий правил
+    QVector<UnaryFunc> conseq_funcs(_mem_funcs.size());
+    for (int i = 0; i < conseq_funcs.size(); ++i) {
+        int a_id = 2*i, b_id = 2*i+1;
+        double a = X(a_id), b = X(b_id);
+        UnaryFunc conseq_func = std::function<double(double)>([a,b](double x)->double { return a*x + b; });
+        conseq_funcs[i] = conseq_func;
+    }
+
+    //Добавление правил
+    for (int i = 0; i < _mem_funcs.size(); ++i) {
+        _cntl.AddRule(_mem_funcs[i], conseq_funcs[i]);
+    }
+}
+
+void CntlBuilder::BuildAll()
 {
     bool is_done = true;
     while (is_done == true) {
-        is_done = BuildStep();
+        is_done = BuildNextMemFunc();
     }
+    BuildCntl();
 }
 
 QVector<CntlBuilder::DistCluster> CntlBuilder::KMeansByDist()
@@ -240,6 +286,7 @@ void CntlBuilder::PrepareToLearning(double x_of_max_abs_y, double max_abs_y)
     _hough.Init(x_of_max_abs_y, max_abs_y);
     AscSortPointsByX(_input_points);
     _not_removed_points_cnt = _input_points.size();
+    _mem_funcs.clear();
     _cntl.Clear();
     _steps_done = 0;
 
@@ -255,6 +302,8 @@ void CntlBuilder::RecogNextLine()
             _hough.AddPoint(x,y);
         }
     }
+    _recog_line_angle_coef = _hough.GetLineAngleCoef();
+    _recog_line_shift = _hough.GetLineShift();
 }
 
 void CntlBuilder::PickPointsFromRecogLine()
@@ -303,20 +352,7 @@ void CntlBuilder::FilterRecogLinePoints()
     _recog_line_points_ptrs = _recog_line_points_ptrs.mid(ret_start_pos, ret_part_size);
 }
 
-void CntlBuilder::ClarifyRecogLineParamsViaMLS()
-{
-    QVector<double> x_vals(_recog_line_points_ptrs.size()), y_vals(_recog_line_points_ptrs.size());
-    for (int i = 0; i < _recog_line_points_ptrs.size(); ++i) {
-        x_vals[i] = _recog_line_points_ptrs[i]->x;
-        y_vals[i] = _recog_line_points_ptrs[i]->y;
-    }
-    double a = 0, b = 0;
-    ApplyMLS(a, b, x_vals, y_vals);
-    _recog_line_angle_coef = a;
-    _recog_line_shift = b;
-}
-
-void CntlBuilder::AddNewRule()
+void CntlBuilder::BuildMemFunc()
 {
     QVector<double> x_vals(_recog_line_points_ptrs.size());
     for (int i = 0; i < x_vals.size(); ++i) {
@@ -324,10 +360,7 @@ void CntlBuilder::AddNewRule()
     }
     //Функция нормального распределения, контроллер получается всюду определённым
     UnaryFunc m_func = SugenoCntl::GenNormalFunc(x_vals);
-
-    double a = _recog_line_angle_coef, b = _recog_line_shift;
-    UnaryFunc conseq_func = std::function<double(double)>([a,b](double x)->double { return a*x + b; });
-    _cntl.AddRule(m_func, conseq_func);
+    _mem_funcs.push_back(m_func);
 }
 
 void CntlBuilder::MarkPointsFromRecogLineAsRemoved()

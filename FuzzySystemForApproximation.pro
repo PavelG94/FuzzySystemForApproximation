@@ -13,10 +13,9 @@ TEMPLATE = app
 
 CONFIG += c++11
 CONFIG += warn_on   #выдавать все возможные предупреждения
-LIBS += -lpthread
+LIBS += -lpthread -larmadillo
 
 SOURCES += \
-    MLS.cpp \
     qcustomplot.cpp \
     Main.cpp \
     UnaryFunc.cpp \
@@ -26,7 +25,6 @@ SOURCES += \
     CntlBuilder.cpp
 
 HEADERS  += \
-    MLS.h \
     qcustomplot.h \
     UnaryFunc.h \
     UnaryFuncBase.h \
