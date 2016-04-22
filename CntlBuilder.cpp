@@ -249,10 +249,21 @@ void CntlBuilder::PrepareToLearning(double x_of_max_abs_y, double max_abs_y)
 void CntlBuilder::RecogNextLine()
 {
     _hough.Clear();
-    for (int i = 0; i < _input_points.size(); ++i) {
-        if (_input_points[i].is_removed == false) {
-            double x = _input_points[i].x, y = _input_points[i].y;
-            _hough.AddPoint(x,y);
+    if (_cntl.RulesCnt() == 0) {
+        for (int i = 0; i < _input_points.size(); ++i) {
+            if (_input_points[i].is_removed == false) {
+                double x = _input_points[i].x, y = _input_points[i].y;
+                double weight = 1;
+                _hough.AddPoint(x,y,weight);
+            }
+        }
+    } else {
+        for (int i = 0; i < _input_points.size(); ++i) {
+            if (_input_points[i].is_removed == false) {
+                double x = _input_points[i].x, y = _input_points[i].y;
+                double error = qAbs(y - _cntl(x));
+                _hough.AddPoint(x,y, error);
+            }
         }
     }
 }
