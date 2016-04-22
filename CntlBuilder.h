@@ -61,9 +61,10 @@ protected:
     QVector<PointInfo*> _recog_line_points_ptrs;
     double _recog_line_angle_coef = 0, _recog_line_shift = 0;
     int _steps_done = 0;
+    bool _is_ready_to_build = false;
 
     int _repeated_calls = 0;
-    bool _is_ready_to_build = false;
+    bool _have_to_use_errors_as_weights = true;
 
     HoughTransform _hough;
     SugenoCntl _cntl;

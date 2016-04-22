@@ -137,7 +137,14 @@ bool CntlBuilder::BuildStep()
             MarkPointsFromRecogLineAsRemoved();
             return BuildStep(); //Рекурсивный вызов
         } else {
-            return false;   //Условие остановки обучения
+            if (_have_to_use_errors_as_weights == true) {
+                _have_to_use_errors_as_weights = false;
+                _repeated_calls = 0;
+                MarkPointsFromRecogLineAsRemoved();
+                return BuildStep(); //Рекурсивный вызов
+            } else {
+                return false;   //Остановка обучения
+            }
         }
     } else {
         _repeated_calls = 0;
@@ -252,6 +259,7 @@ void CntlBuilder::PrepareToLearning(double x_of_max_abs_y, double max_abs_y)
     _steps_done = 0;
 
     _repeated_calls = 0;
+    _have_to_use_errors_as_weights = true;
 
     _is_ready_to_build = true;
 }
@@ -259,7 +267,7 @@ void CntlBuilder::PrepareToLearning(double x_of_max_abs_y, double max_abs_y)
 void CntlBuilder::RecogNextLine()
 {
     _hough.Clear();
-    if (_cntl.RulesCnt() == 0) {
+    if (_cntl.RulesCnt() == 0 || _have_to_use_errors_as_weights == false) {
         for (int i = 0; i < _input_points.size(); ++i) {
             if (_input_points[i].is_removed == false) {
                 double x = _input_points[i].x, y = _input_points[i].y;
