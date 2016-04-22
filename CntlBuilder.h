@@ -13,6 +13,7 @@ public:
     enum DistCluster { dcSHORT, dcLONG };
 
     const int MIN_POINTS_FOR_LINE_DEF = 2;
+    const int MAX_REPEATED_CALLS = 1;
 
     void SetData(UnaryFunc &f, double x_min, double x_max, double step);
     void SetData(const QVector<double> &x_vals, const QVector<double> &y_vals);
@@ -60,6 +61,9 @@ protected:
     double _recog_line_angle_coef = 0, _recog_line_shift = 0;
     int _steps_done = 0;
     bool _is_ready_to_build = false;
+
+    int _repeated_calls = 0;
+    bool _have_to_use_filter = true;
 
     QVector<UnaryFunc> _mem_funcs;
 

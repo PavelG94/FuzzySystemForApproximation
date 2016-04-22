@@ -124,11 +124,28 @@ bool CntlBuilder::BuildNextMemFunc()
 
     PickPointsFromRecogLine();
 
-    FilterRecogLinePoints();
+    if (_have_to_use_filter == true) {
+        FilterRecogLinePoints();
+    }
 
     if (_recog_line_points_ptrs.size() <= MIN_POINTS_FOR_LINE_DEF) {
-        MarkPointsFromRecogLineAsRemoved();
-        return BuildNextMemFunc(); //Рекурсивный вызов
+        if (_repeated_calls < MAX_REPEATED_CALLS) {
+            ++_repeated_calls;
+            qDebug() << "repeated calls: " << _repeated_calls;
+            MarkPointsFromRecogLineAsRemoved();
+            return BuildNextMemFunc(); //Рекурсивный вызов
+        } else {
+            if (_have_to_use_filter == true) {
+                _have_to_use_filter = false;
+                _repeated_calls = 0;
+                qDebug() << "filter was disabled!";
+                return BuildNextMemFunc(); //Рекурсивный вызов
+            } else {
+                return false;   //Остановка обучения
+            }
+        }
+    } else {
+        _repeated_calls = 0;
     }
 
     BuildMemFunc();
@@ -289,6 +306,9 @@ void CntlBuilder::PrepareToLearning(double x_of_max_abs_y, double max_abs_y)
     _mem_funcs.clear();
     _cntl.Clear();
     _steps_done = 0;
+
+    _repeated_calls = 0;
+    _have_to_use_filter = true;
 
     _is_ready_to_build = true;
 }

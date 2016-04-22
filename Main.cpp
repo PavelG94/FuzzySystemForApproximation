@@ -39,6 +39,7 @@ int RunProg(int argc, char *argv[])
 
     UnaryFunc f([](double x)->double {
         double y = (x != 0)? qSin(x)/x: 1;
+        //double y = qPow(x,5);
         return y;
     });
     const double x_min = -10, x_max = 10, step = 0.1;
@@ -51,6 +52,7 @@ int RunProg(int argc, char *argv[])
 
     MainWindow win;
     QCPRange x_range(x_min, x_max), y_range(-3,3);
+    //QCPRange x_range(x_min, x_max), y_range(-10000,10000);
     win.SetAxisRanges(x_range, y_range);
     win.SetBuilder(&builder);
     win.DrawInputPoints();
