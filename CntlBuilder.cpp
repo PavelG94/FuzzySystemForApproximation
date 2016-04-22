@@ -131,8 +131,16 @@ bool CntlBuilder::BuildStep()
     FilterRecogLinePoints();
 
     if (_recog_line_points_ptrs.size() <= MIN_POINTS_FOR_LINE_DEF) {
-        MarkPointsFromRecogLineAsRemoved();
-        return BuildStep(); //Рекурсивный вызов
+        if (_repeated_calls < MAX_REPEATED_CALLS) {
+            ++_repeated_calls;
+            qDebug() << "repeated calls: " << _repeated_calls;
+            MarkPointsFromRecogLineAsRemoved();
+            return BuildStep(); //Рекурсивный вызов
+        } else {
+            return false;   //Условие остановки обучения
+        }
+    } else {
+        _repeated_calls = 0;
     }
 
     ClarifyRecogLineParamsViaMLS();
@@ -242,6 +250,8 @@ void CntlBuilder::PrepareToLearning(double x_of_max_abs_y, double max_abs_y)
     _not_removed_points_cnt = _input_points.size();
     _cntl.Clear();
     _steps_done = 0;
+
+    _repeated_calls = 0;
 
     _is_ready_to_build = true;
 }
